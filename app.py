@@ -47,8 +47,9 @@ st.markdown("""
         font-family: 'Fraunces', Georgia, serif !important;
         font-weight: 900 !important;
         color: #111111 !important;
-        border-bottom: 4px double #111111 !important;
-        padding-bottom: 12px !important;
+        border-bottom: none !important;
+        padding-bottom: 0px !important;
+        margin-bottom: 0px !important;
         letter-spacing: -0.03em !important;
         line-height: 1.2 !important;
     }
@@ -161,7 +162,7 @@ st.markdown("""
         border: none !important;
         border-top: 3px double #111111 !important;
         opacity: 1 !important;
-        margin: 1.5rem 0 !important;
+        margin: 0.5rem 0 1.5rem 0 !important;
     }
 
     /* Streamlit 按鈕新聞紙風格 */
@@ -656,12 +657,15 @@ if has_urgent_announcement:
 # Header Section
 col_header_left, col_header_right = st.columns([3, 1])
 with col_header_left:
-    st.markdown("<h1>🏢 統一數位大樓生活資訊平台<span class='title-subtitle'>(LIFE DASHBOARD)</span></h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='margin:0;'>🏢 統一數位大樓生活資訊平台<span class='title-subtitle'>(LIFE DASHBOARD)</span></h1>", unsafe_allow_html=True)
 with col_header_right:
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    st.write(f"**系統時間**：{now_str}")
-    # Compute countdown
-    st.write(f"⏱️ 網頁每 60 秒自動重新載入 ({count})")
+    st.markdown(f"""
+    <div style="text-align: right; font-family: 'Inter', sans-serif; font-size: 0.9rem; color: #555555; line-height: 1.6; margin-top: 8px;">
+        <b>系統時間</b>：{now_str}<br/>
+        ⏱️ 網頁每 60 秒自動重新載入 ({count})
+    </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("---")
 
