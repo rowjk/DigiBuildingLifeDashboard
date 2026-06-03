@@ -2368,8 +2368,31 @@ st.markdown("---")
 
 # Row 4: 周邊地圖 Map Section (Full Width)
 st.subheader("＃ 周邊地圖")
-# Embedded Google Maps iframe linked with user_lat and user_lng from localization settings, featuring live traffic overlay (layer=t)
-iframe_src = f"https://maps.google.com/maps?q={st.session_state['user_lat']},{st.session_state['user_lng']}&layer=t&z=16&ie=UTF8&iwloc=&output=embed"
+
+# Generate base64 DMS coordinates for Google Maps Embed marker
+lat = st.session_state['user_lat']
+lng = st.session_state['user_lng']
+
+lat_dir = "N" if lat >= 0 else "S"
+lat_val = abs(lat)
+lat_deg = int(lat_val)
+lat_min_f = (lat_val - lat_deg) * 60
+lat_min = int(lat_min_f)
+lat_sec = (lat_min_f - lat_min) * 60
+
+lng_dir = "E" if lng >= 0 else "W"
+lng_val = abs(lng)
+lng_deg = int(lng_val)
+lng_min_f = (lng_val - lng_deg) * 60
+lng_min = int(lng_min_f)
+lng_sec = (lng_min_f - lng_min) * 60
+
+dms_str = f"{lat_deg}°{lat_min:02d}'{lat_sec:04.1f}\"{lat_dir} {lng_deg}°{lng_min:02d}'{lng_sec:04.1f}\"{lng_dir}"
+b64_dms = base64.b64encode(dms_str.encode('utf-8')).decode('utf-8').replace('=', '')
+
+# Official Google Maps Embed URL with custom coordinates, pin marker, and live traffic overlay enabled by !5m1!1e1
+iframe_src = f"https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3614.266205721868!2d{lng}!3d{lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2z{b64_dms}!5e0!3m2!1szh-TW!2stw!4v1717417000000!5m1!1e1"
+
 st.components.v1.html(
     f'<iframe width="100%" height="450" frameborder="0" style="border:0;" src="{iframe_src}" allowfullscreen></iframe>',
     height=460
