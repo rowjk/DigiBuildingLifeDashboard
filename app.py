@@ -892,6 +892,12 @@ st.markdown(f"""
         font-family: var(--font-header) !important;
         border: none !important;
         border-radius: var(--radius) !important;
+        padding-top: 4px !important;
+        padding-bottom: 4px !important;
+    }}
+    [data-testid="stExpander"] summary div {{
+        padding-top: 0px !important;
+        padding-bottom: 0px !important;
     }}
     /* 展開後的 Content */
     .streamlit-expanderContent, [data-testid="stExpander"] > div[role="region"] {{
@@ -2464,7 +2470,7 @@ if results:
         pl_val = max(1, min(pl_val, 4))
         price_str = "＄" * pl_val
 
-        expander_label = f"{'🥇' if rank==1 else '🥈' if rank==2 else '🥉' if rank==3 else f'#{rank}'}  {r.name}  |  ⭐ {r.google_rating}  |  {r.category}  |  {price_str}  |  📍 {r.calculated_distance} 公尺"
+        expander_label = f"{'🥇' if rank==1 else '🥈' if rank==2 else '🥉' if rank==3 else f'#{rank}'} {r.name} | ⭐ {r.google_rating} | {r.category} | {price_str} | 📍 {r.calculated_distance} 公尺"
         with st.expander(expander_label, expanded=False):
             # Fetch Google Places details
             with st.spinner(f"正在查詢 {r.name} 的 Google Places 資料..."):

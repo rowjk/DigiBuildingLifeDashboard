@@ -174,8 +174,10 @@
 4. **頁尾更新日期（Footer）時區對齊**：
    * 將頁尾版本更新資訊中的 `datetime.date.today()` 改為 `datetime.datetime.now(tz_utc8).strftime("%Y-%m-%d")`，確保在午夜時分，台北的更新日期與系統的換日線完全一致，不因伺服器 UTC 時差而延遲 8 小時更新。
 5. **摺疊面板 (Expander) 卡片間距再縮減 50%**：
-   * 為了進一步提升緊湊感，我們將美食推薦等摺疊面板卡片的包裝容器 `.element-container` 的 `margin-bottom` 從 `-8px !important` 調整為 **`-12px !important`**。
-   * 此微調能將摺疊面板卡片與卡片之間的垂直空行間距從 `8px` 再度縮小 50%，達到極致緊實的 **`4px`** 間距，使視覺呈現更為緊湊，大幅提升資訊密度。
+   * 為了進一步提升緊湊感，我們將美食推薦等摺疊面板卡片的包裝容器 `.element-container` 的 `margin-bottom` 從 `-8px !important` 調整為 **`-12px !important`**，使外部卡片間距縮減至 **`4px`**。
+   * **資料內距與文字間距縮減 50%**：
+     * 將卡片 `summary` 標題列的 `padding-top` 和 `padding-bottom` 縮減為 **`4px !important`**，並將內部 `div` 容器的內距歸零，顯著壓縮了卡片本身的高度。
+     * 將卡片標題列文字中的雙空格與管線間隔 `  |  ` 簡化為單空格 ` | `，使行內資料間距水平緊縮 50%，排版更簡練精美。
 
 ---
 
