@@ -1761,7 +1761,7 @@ with col_header_right:
 st.markdown("---")
 
 # ----------------- Positioning System UI -----------------
-st.subheader("📍 平台中心定位設定")
+st.subheader("＃ 平台中心定位設定")
 col_pos_mode, col_pos_val = st.columns([1, 2])
 
 with col_pos_mode:
@@ -1988,7 +1988,7 @@ if weather:
     weather_icon = get_weather_icon(weather.get('desc'))
 
 # Today's Weather Section
-st.subheader("☀️ 即時天氣監控")
+st.subheader("＃ 即時天氣監控")
 st.markdown(strip_html(f"""
 <div class="weather-card" style="padding: 18px 24px !important;">
     <div class="weather-title" style="margin-bottom: 16px !important; display: flex; justify-content: space-between; align-items: center;">
@@ -2020,7 +2020,7 @@ st.markdown(strip_html(f"""
 """), unsafe_allow_html=True)
 
 # News Headlines Section (with Scrollbar)
-st.subheader("📢 新聞頭條")
+st.subheader("＃ 新聞頭條")
 if all_news:
     ann_cards_html = []
     for news in all_news:
@@ -2046,7 +2046,7 @@ else:
     st.write("目前無新聞頭條資訊")
 
 # YouBike Section
-st.subheader("🚲 YouBike站點")
+st.subheader("＃ YouBike站點")
 if youbike_list:
     cols_yb = st.columns(min(len(youbike_list), 3))
     for idx, yb in enumerate(youbike_list[:3]):
@@ -2078,7 +2078,7 @@ else:
     st.write("目前無鄰近 YouBike 2.0 站點資料")
 
 # Bus Arrivals Section (with Scrollbar)
-st.subheader("🚌 公車即時到站動態(台北市)")
+st.subheader("＃ 公車即時到站動態(台北市)")
 if bus_list:
     # 排序：先依預估到站時間（raw_time）最小排序，負值（末班車/尚未發車等）排最後，再依路線編號排序
     def bus_sort_key(b):
@@ -2135,7 +2135,7 @@ else:
 st.markdown("---")
 
 # Road Traffic Section
-st.subheader("🚗 即時路況監控")
+st.subheader("＃ 即時路況監控")
 if traffic_data:
     if traffic_data.get("status") == "unavailable":
         st.warning(f"⚠️ 本路況查詢功能目前僅支援台北市區及鄰近國道路段。當前定位點（{city_name}）暫不支援。")
@@ -2248,7 +2248,7 @@ else:
 st.markdown("---")
 
 # Row 3: Lunch Recommendations (Full Width)
-st.subheader("🍲 美食推薦 Top 10")
+st.subheader("＃ 美食推薦 Top 10")
 
 has_places_key = bool(os.getenv("GOOGLE_PLACES_API_KEY"))
 if not has_places_key:
@@ -2362,7 +2362,7 @@ else:
 st.markdown("---")
 
 # Row 4: 周邊地圖 Map Section (Full Width)
-st.subheader("🗺️ 周邊地圖")
+st.subheader("＃ 周邊地圖")
 # Embedded Google Maps iframe linked with user_lat and user_lng from localization settings
 iframe_src = f"https://maps.google.com/maps?q={st.session_state['user_lat']},{st.session_state['user_lng']}&t=&z=16&ie=UTF8&iwloc=&output=embed"
 st.components.v1.html(
@@ -2386,11 +2386,11 @@ st.markdown(strip_html(f"""
 
 # ----------------- Sidebar Admin Panel -----------------
 with st.sidebar:
-    st.header("⚙️ 系統設定與後台")
+    st.header("＃ 系統設定與後台")
     enable_admin = st.checkbox("切換至後台管理", value=False)
     
     if enable_admin:
-        st.subheader("管理員安全登入")
+        st.subheader("＃ 管理員安全登入")
         admin_user = st.text_input("帳號", key="admin_username")
         admin_pass = st.text_input("密碼", type="password", key="admin_password")
         
@@ -2400,7 +2400,7 @@ with st.sidebar:
             st.success("登入成功！")
             
             st.markdown("---")
-            st.subheader("🗂️ 公告資料管理 (CRUD)")
+            st.subheader("＃ 公告資料管理 (CRUD)")
             
             # Fetch announcements to pandas
             an_query = db.query(Announcement).all()
@@ -2465,7 +2465,7 @@ with st.sidebar:
                 st.rerun()
                 
             st.markdown("---")
-            st.subheader("🍱 推薦餐廳管理 (CRUD)")
+            st.subheader("＃ 推薦餐廳管理 (CRUD)")
             
             # Fetch restaurants to pandas
             res_query = db.query(Restaurant).all()
