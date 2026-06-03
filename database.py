@@ -15,6 +15,11 @@ def hash_password(password: str) -> str:
     return hashlib.sha256((salt + password).encode('utf-8')).hexdigest()
 
 # --- Database Models ---
+def get_taipei_now():
+    # Return naive datetime representing Taipei local time (UTC+8)
+    tz_utc8 = datetime.timezone(datetime.timedelta(hours=8))
+    return datetime.datetime.now(tz_utc8).replace(tzinfo=None)
+
 class Announcement(Base):
     __tablename__ = 'announcements'
     
@@ -23,7 +28,7 @@ class Announcement(Base):
     content = Column(String(1000), nullable=False)
     is_urgent = Column(Boolean, default=False)
     source = Column(String(50), default='Admin')
-    created_at = Column(DateTime, default=datetime.datetime.now)
+    created_at = Column(DateTime, default=get_taipei_now)
 
 class Restaurant(Base):
     __tablename__ = 'restaurants'

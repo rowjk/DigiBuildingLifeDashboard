@@ -179,7 +179,8 @@ def fetch_google_place_details(restaurant_name, lat, lng):
 
     # Fallback to Mock Data
     open_now = True
-    current_hour = datetime.datetime.now().hour
+    tz_utc8 = datetime.timezone(datetime.timedelta(hours=8))
+    current_hour = datetime.datetime.now(tz_utc8).hour
     if current_hour < 11 or current_hour > 21:
         open_now = False
 
@@ -1156,12 +1157,13 @@ def fetch_weather(city_name, district_name):
             
         elements = location_data["WeatherElement"]
         
+        tz_utc8 = datetime.timezone(datetime.timedelta(hours=8))
         weather_info = {
             "temp": "N/A",
             "apparent_temp": "N/A",
             "pop": "N/A",
             "desc": "N/A",
-            "time": datetime.datetime.now().strftime("%H:%M:%S")
+            "time": datetime.datetime.now(tz_utc8).strftime("%H:%M:%S")
         }
         
         for el in elements:
@@ -1238,7 +1240,8 @@ def fetch_taipei_gov_announcements():
                 except Exception:
                     display_date = raw_date
             else:
-                display_date = datetime.datetime.now().strftime("%Y-%m-%d")
+                tz_utc8 = datetime.timezone(datetime.timedelta(hours=8))
+                display_date = datetime.datetime.now(tz_utc8).strftime("%Y-%m-%d")
                 
             parsed_news.append({
                 "title": title,
@@ -1275,7 +1278,8 @@ def fetch_google_news_taiwan():
             if pub_date:
                 try:
                     parsed_time = email.utils.parsedate_to_datetime(pub_date)
-                    local_time = parsed_time.astimezone() # 自動轉成本地時區 (台灣台北 UTC+8)
+                    tz_utc8 = datetime.timezone(datetime.timedelta(hours=8))
+                    local_time = parsed_time.astimezone(tz_utc8) # 自動轉成台灣台北 UTC+8 時區
                     pub_date = local_time.strftime("%Y-%m-%d %H:%M")
                     dt_obj = local_time
                 except Exception:
@@ -1492,7 +1496,8 @@ def fetch_road_traffic_data(lat, lng, city_name):
     nearby_roads = nearby_roads[:6]
 
     # Generate 5-minute interval timestamp and seed for state consistency
-    now = datetime.datetime.now()
+    tz_utc8 = datetime.timezone(datetime.timedelta(hours=8))
+    now = datetime.datetime.now(tz_utc8)
     minute_5 = (now.minute // 5) * 5
     data_time = now.replace(minute=minute_5, second=0, microsecond=0)
     data_time_str = data_time.strftime("%Y-%m-%d %H:%M:%S")
@@ -1560,29 +1565,32 @@ def fetch_road_traffic_data(lat, lng, city_name):
 
 # ----------------- Mock Fallback Datasets -----------------
 def get_mock_weather():
+    tz_utc8 = datetime.timezone(datetime.timedelta(hours=8))
     return {
         "temp": "26°C",
         "apparent_temp": "28°C",
         "pop": "30%",
         "desc": "多雲午後短暫陣雨 (暫存)",
-        "time": datetime.datetime.now().strftime("%H:%M:%S")
+        "time": datetime.datetime.now(tz_utc8).strftime("%H:%M:%S")
     }
 
 def get_mock_taipei_announcements():
+    tz_utc8 = datetime.timezone(datetime.timedelta(hours=8))
+    now_date = datetime.datetime.now(tz_utc8).strftime("%Y-%m-%d")
     return [
         {
             "title": "【災害防救】北市府因應強烈颱風接近，宣布明日全市停止上班上課",
             "content": "根據中央氣象署最新颱風預報資訊，本市已達停班停課標準，為保障市民生命安全，明日 (6/4) 停止上班上課。請市民減少外出防範災害。",
             "is_urgent": True,
             "source": "TaipeiGov",
-            "created_at": datetime.datetime.now().strftime("%Y-%m-%d")
+            "created_at": now_date
         },
         {
             "title": "臺北市基隆路地下道車載與號誌更新工程施工管制說明",
             "content": "台北市工務局宣布，將自本月 10 日起夜間管制基隆路部分車道，請夜間通勤用路人提前改道行駛並配合交通疏導。",
             "is_urgent": False,
             "source": "TaipeiGov",
-            "created_at": datetime.datetime.now().strftime("%Y-%m-%d")
+            "created_at": now_date
         }
     ]
 
@@ -2278,7 +2286,8 @@ if traffic_data:
         st.warning(f"⚠️ 本路況查詢功能目前僅支援台北市區及鄰近國道路段。當前定位點（{city_name}）暫不支援。")
     else:
         # Show update time and data limitation (every 5 minutes update)
-        up_time = traffic_data.get("update_time", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        tz_utc8 = datetime.timezone(datetime.timedelta(hours=8))
+        up_time = traffic_data.get("update_time", datetime.datetime.now(tz_utc8).strftime("%Y-%m-%d %H:%M:%S"))
         st.markdown(f"<div style='font-size: 0.82rem; color: var(--text-color); opacity: 0.7; margin-top: -10px; margin-bottom: 12px;'>定位點：{st.session_state['loc_name']} ({display_district}) | 資料來源：台北市交通 VD 與國道即時資訊 (資料限制：每 5 分鐘更新一次) | <b>更新時間：{up_time}</b></div>", unsafe_allow_html=True)
 
         roads = traffic_data.get("roads", [])
@@ -2509,7 +2518,8 @@ st.components.v1.html(
 )
 
 # Footer Section
-today_str = datetime.date.today().strftime("%Y-%m-%d")
+tz_utc8 = datetime.timezone(datetime.timedelta(hours=8))
+today_str = datetime.datetime.now(tz_utc8).strftime("%Y-%m-%d")
 st.markdown(strip_html(f"""
 <div style="border-top: 3px double #111111; padding-top: 20px; margin-top: 40px; padding-bottom: 20px; text-align: center; font-family: 'Inter', sans-serif; font-size: 0.85rem; color: #555555; line-height: 1.6;">
     <div>© 2026 統一數位大樓生活資訊平台 (Life Dashboard) 版權所有</div>

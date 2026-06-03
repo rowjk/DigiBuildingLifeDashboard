@@ -160,6 +160,22 @@
 
 ---
 
+## ⏰ 全站時間與時區（Taipei UTC+8）優化與校對
+
+為了解決 Streamlit App 部署至雲端伺服器（如 Streamlit Community Cloud，系統時間預設為 UTC 時區）所導致的時區顯示及計算偏差，我們對全站的時間、時區與更新時間進行了全面性審查與程式碼修正：
+
+1. **資料庫層 (Database) 時區校對**：
+   * 在 [database.py](file:///c:/Users/james_wu/Documents/Antigravity_Project/統一數位大樓生活資訊平台 (Life Dashboard)/database.py) 中，將 `Announcement.created_at` 欄位的預設值 `default=datetime.datetime.now` 改為自訂的 `get_taipei_now()`，主動獲取台灣台北（UTC+8）時區的 naive datetime，確保後台安全登入與 CRUD 公告新增時，建立時間永久與台灣台北時間同步。
+2. **即時天气與路況更新時間校正**：
+   * 修正了即時天氣 API 數據獲取時間以及即時路況 API 的資料更新時間。在 API 連線成功或觸發 Mock 暫存資料降級時，全數將 `datetime.datetime.now()` 更換為 `datetime.datetime.now(tz_utc8)`（強制指定台北時區），防止雲端伺服器在背景顯示 UTC 格式的更新時間。
+3. **新聞 RSS 發布時間與 Mock 公告日期時區修正**：
+   * 修正了 Google News RSS 時間解析：將 `parsed_time.astimezone()` 改為明確傳入台北時區 `parsed_time.astimezone(tz_utc8)`，確保新聞更新時間精準無誤。
+   * 修正了 Mock 公告列表的建立日期與 Mock 路況的時間種子。
+4. **頁尾更新日期（Footer）時區對齊**：
+   * 將頁尾版本更新資訊中的 `datetime.date.today()` 改為 `datetime.datetime.now(tz_utc8).strftime("%Y-%m-%d")`，確保在午夜時分，台北的更新日期與系統的換日線完全一致，不因伺服器 UTC 時差而延遲 8 小時更新。
+
+---
+
 ## 如何在本機運行與測試
 
 1. 在專案根目錄下，開啟終端機並執行以下指令啟動：
