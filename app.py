@@ -5,8 +5,11 @@ import uuid
 import datetime
 import hashlib
 import httpx
+import math
 import pandas as pd
 import streamlit as st
+import streamlit_antd_components as sac
+from streamlit_js_eval import get_geolocation
 from streamlit_autorefresh import st_autorefresh
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
@@ -29,6 +32,162 @@ except Exception:
 def strip_html(html_str):
     return "".join(line.strip() for line in html_str.strip().split("\n"))
 
+def haversine_distance(lat1, lon1, lat2, lon2):
+    try:
+        lat1, lon1, lat2, lon2 = map(float, [lat1, lon1, lat2, lon2])
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+        a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
+        c = 2 * math.asin(math.sqrt(a))
+        return c * 6371000  # in meters
+    except Exception:
+        return 999999.0
+
+@st.cache_data(ttl=86400)
+def google_geocode_or_search(query):
+    if not query:
+        return None
+    api_key = os.getenv("GOOGLE_PLACES_API_KEY")
+    # Predefined locales fallback
+    predefined = {
+        "台北車站": (25.0478, 121.5170),
+        "捷運昆陽站": (25.0502, 121.5933),
+        "捷運港墘站": (25.0798, 121.5751),
+        "內湖好市多": (25.0617, 121.5796),
+        "統一數位大樓": (25.059727, 121.589632),
+        "南港車站": (25.052187, 121.606775),
+        "台北101": (25.033976, 121.564539)
+    }
+    for k, v in predefined.items():
+        if k in query:
+            return v
+
+    if api_key:
+        url = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
+        params = {
+            "input": query,
+            "inputtype": "textquery",
+            "fields": "geometry",
+            "key": api_key
+        }
+        try:
+            with httpx.Client(verify=False, timeout=3.0) as client:
+                r = client.get(url, params=params)
+                if r.status_code == 200:
+                    data = r.json()
+                    if data.get("candidates"):
+                        loc = data["candidates"][0]["geometry"]["location"]
+                        return float(loc["lat"]), float(loc["lng"])
+        except Exception:
+            pass
+
+    # Free Nominatim geocoding fallback
+    try:
+        url = f"https://nominatim.openstreetmap.org/search"
+        headers = {"User-Agent": "LifeDashboard/1.2"}
+        params = {"q": query, "format": "json", "limit": 1}
+        with httpx.Client(verify=False, timeout=3.0) as client:
+            r = client.get(url, headers=headers, params=params)
+            if r.status_code == 200:
+                data = r.json()
+                if data:
+                    return float(data[0]["lat"]), float(data[0]["lon"])
+    except Exception:
+        pass
+    return None
+
+@st.cache_data(ttl=3600)
+def fetch_google_place_details(restaurant_name, lat, lng):
+    api_key = os.getenv("GOOGLE_PLACES_API_KEY")
+    if api_key:
+        try:
+            # 1. Find Place to get Place ID
+            find_url = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
+            find_params = {
+                "input": restaurant_name,
+                "inputtype": "textquery",
+                "locationbias": f"point:{lat},{lng}",
+                "fields": "place_id",
+                "key": api_key
+            }
+            with httpx.Client(verify=False, timeout=3.0) as client:
+                r_find = client.get(find_url, params=find_params)
+                if r_find.status_code == 200:
+                    find_data = r_find.json()
+                    if find_data.get("candidates"):
+                        place_id = find_data["candidates"][0]["place_id"]
+                        
+                        # 2. Get Details
+                        details_url = "https://maps.googleapis.com/maps/api/place/details/json"
+                        details_params = {
+                            "place_id": place_id,
+                            "fields": "name,rating,reviews,opening_hours,formatted_phone_number,website",
+                            "key": api_key,
+                            "language": "zh-TW"
+                        }
+                        r_details = client.get(details_url, params=details_params)
+                        if r_details.status_code == 200:
+                            det_data = r_details.json().get("result", {})
+                            
+                            # Parse details
+                            rating = det_data.get("rating", 4.0)
+                            reviews = []
+                            for rev in det_data.get("reviews", [])[:3]:
+                                reviews.append({
+                                    "author": rev.get("author_name", "Google 顧客"),
+                                    "rating": rev.get("rating", 5),
+                                    "text": rev.get("text", "美味推薦！"),
+                                    "time": rev.get("relative_time_description", "最近")
+                                })
+                            
+                            op_hours = det_data.get("opening_hours", {})
+                            open_now = op_hours.get("open_now")
+                            weekday_text = op_hours.get("weekday_text", [])
+                            
+                            return {
+                                "rating": rating,
+                                "reviews": reviews,
+                                "open_now": open_now,
+                                "weekday_text": weekday_text,
+                                "phone": det_data.get("formatted_phone_number", "無提供"),
+                                "website": det_data.get("website", ""),
+                                "is_mock": False
+                            }
+        except Exception:
+            pass
+
+    # Fallback to Mock Data
+    open_now = True
+    current_hour = datetime.datetime.now().hour
+    if current_hour < 11 or current_hour > 21:
+        open_now = False
+        
+    mock_reviews = [
+        {"author": "James Chen", "rating": 5, "text": f"這家餐廳的服務很棒，環境乾淨！餐點份量十足，特別是招牌菜色非常好吃，極力推薦！", "time": "1 週前"},
+        {"author": "林小姐", "rating": 4, "text": f"這家店的口味很棒，每到中午人都很多。是上班族午餐的優質選擇，出餐速度也很快！", "time": "3 天前"},
+        {"author": "張先生", "rating": 4, "text": "味道很道地，價格親民。CP值極高！下次會想再來嘗試其他餐點。", "time": "2 週前"}
+    ]
+    
+    weekday_text = [
+        "星期一: 11:00 – 21:00",
+        "星期二: 11:00 – 21:00",
+        "星期三: 11:00 – 21:00",
+        "星期四: 11:00 – 21:00",
+        "星期五: 11:00 – 21:00",
+        "星期六: 11:00 – 21:00",
+        "星期日: 休息"
+    ]
+    
+    return {
+        "rating": 4.2,
+        "reviews": mock_reviews,
+        "open_now": open_now,
+        "weekday_text": weekday_text,
+        "phone": "02-2792-XXXX",
+        "website": "https://maps.google.com",
+        "is_mock": True
+    }
+
 # Load environment variables
 load_dotenv()
 
@@ -42,328 +201,485 @@ st.set_page_config(
 # Top Anchor for Back to Top Button
 st.markdown("<div id='linkto_top'></div>", unsafe_allow_html=True)
 
+# ----------------- Theme Switcher configuration -----------------
+with st.sidebar:
+    st.markdown("### 🎨 主題風格切換")
+    selected_theme = sac.segmented(
+        items=[
+            sac.SegmentedItem(label="📰 新聞紙經典", icon="newspaper"),
+            sac.SegmentedItem(label="🌙 優雅深色", icon="moon-stars"),
+            sac.SegmentedItem(label="🌲 北歐極簡", icon="tree"),
+            sac.SegmentedItem(label="⏳ 暖陽沙黃", icon="sun")
+        ],
+        align="center",
+        grow=True,
+        color="dark",
+        size="sm"
+    )
+
+# Map selected theme to CSS Variables
+theme_vars = {
+    "📰 新聞紙經典": {
+        "bg-color": "#F7F4EF",
+        "text-color": "#111111",
+        "border-color": "#111111",
+        "card-bg": "transparent",
+        "accent-color": "#000000",
+        "font-header": "'Fraunces', Georgia, serif",
+        "font-body": "'Inter', system-ui, sans-serif",
+        "radius": "0px",
+        "border-style": "1px solid var(--border-color)",
+        "hr-style": "3px double var(--border-color)",
+        "box-shadow": "none",
+        "alert-bg": "#FDF2F2",
+        "alert-border": "#CC0000",
+        "metric-value-color": "#111111",
+        "scrollbar-thumb": "#111111"
+    },
+    "🌙 優雅深色": {
+        "bg-color": "#0F172A",
+        "text-color": "#F8FAFC",
+        "border-color": "#334155",
+        "card-bg": "#1E293B",
+        "accent-color": "#38BDF8",
+        "font-header": "'Inter', system-ui, sans-serif",
+        "font-body": "'Inter', system-ui, sans-serif",
+        "radius": "8px",
+        "border-style": "1px solid var(--border-color)",
+        "hr-style": "1px solid var(--border-color)",
+        "box-shadow": "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)",
+        "alert-bg": "#311C1C",
+        "alert-border": "#EF4444",
+        "metric-value-color": "#38BDF8",
+        "scrollbar-thumb": "#475569"
+    },
+    "🌲 北歐極簡": {
+        "bg-color": "#ECEFF4",
+        "text-color": "#2E3440",
+        "border-color": "#D8DEE9",
+        "card-bg": "#FFFFFF",
+        "accent-color": "#5E81AC",
+        "font-header": "'Inter', system-ui, sans-serif",
+        "font-body": "'Inter', system-ui, sans-serif",
+        "radius": "12px",
+        "border-style": "none",
+        "hr-style": "2px solid #E5E9F0",
+        "box-shadow": "0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -4px rgba(0,0,0,0.05)",
+        "alert-bg": "#F5F2EB",
+        "alert-border": "#5E81AC",
+        "metric-value-color": "#5E81AC",
+        "scrollbar-thumb": "#D8DEE9"
+    },
+    "⏳ 暖陽沙黃": {
+        "bg-color": "#F5F2EB",
+        "text-color": "#3C2F2F",
+        "border-color": "#E6DFD3",
+        "card-bg": "#FAF8F5",
+        "accent-color": "#D4A373",
+        "font-header": "'Fraunces', Georgia, serif",
+        "font-body": "'Inter', system-ui, sans-serif",
+        "radius": "4px",
+        "border-style": "1px solid var(--border-color)",
+        "hr-style": "2px dashed var(--border-color)",
+        "box-shadow": "2px 2px 0px var(--border-color)",
+        "alert-bg": "#FDF6EC",
+        "alert-border": "#E6A23C",
+        "metric-value-color": "#D4A373",
+        "scrollbar-thumb": "#D4A373"
+    }
+}
+
+selected_theme = selected_theme or "📰 新聞紙經典"
+cfg = theme_vars.get(selected_theme, theme_vars["📰 新聞紙經典"])
+
 # ----------------- CSS Custom Styling -----------------
-st.markdown("""
+st.markdown(f"""
 <style>
     /* 匯入襯線與無襯線 Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400&family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400&family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;800&display=swap');
+
+    :root {{
+        --bg-color: {cfg['bg-color']};
+        --text-color: {cfg['text-color']};
+        --border-color: {cfg['border-color']};
+        --card-bg: {cfg['card-bg']};
+        --accent-color: {cfg['accent-color']};
+        --font-header: {cfg['font-header']};
+        --font-body: {cfg['font-body']};
+        --radius: {cfg['radius']};
+        --border-style: {cfg['border-style']};
+        --hr-style: {cfg['hr-style']};
+        --box-shadow: {cfg['box-shadow']};
+        --alert-bg: {cfg['alert-bg']};
+        --alert-border: {cfg['alert-border']};
+        --metric-value-color: {cfg['metric-value-color']};
+        --scrollbar-thumb: {cfg['scrollbar-thumb']};
+    }}
 
     /* 覆寫 Streamlit 全域底色與字體 */
-    .stApp {
-        background-color: #F7F4EF !important;
-        color: #111111 !important;
-        font-family: 'Inter', system-ui, sans-serif;
-    }
+    .stApp {{
+        background-color: var(--bg-color) !important;
+        color: var(--text-color) !important;
+        font-family: var(--font-body), sans-serif;
+    }}
     
     /* 調整主容器邊界 */
-    .block-container {
+    .block-container {{
         padding-top: 2rem !important;
         padding-bottom: 2rem !important;
         max-width: 1200px;
-    }
+    }}
 
     /* 報紙標題樣式 */
-    h1 {
-        font-family: 'Fraunces', Georgia, serif !important;
+    h1 {{
+        font-family: var(--font-header) !important;
         font-weight: 900 !important;
-        color: #111111 !important;
+        color: var(--text-color) !important;
         border-bottom: none !important;
         padding-bottom: 0px !important;
         margin-bottom: 0px !important;
         letter-spacing: -0.03em !important;
         line-height: 1.2 !important;
-    }
+    }}
     
-    h1 span.title-subtitle {
+    h1 span.title-subtitle {{
         font-size: 80% !important; /* 縮小 20% */
         display: block !important;
         margin-top: 6px !important;
         text-transform: uppercase !important;
         font-weight: 700 !important;
         letter-spacing: 0.05em !important;
-    }
+    }}
 
-    h2, h3, .stSubheader {
-        font-family: 'Fraunces', Georgia, serif !important;
+    h2, h3, .stSubheader {{
+        font-family: var(--font-header) !important;
         font-weight: 700 !important;
-        color: #111111 !important;
-        border-bottom: 1px solid #111111 !important;
+        color: var(--text-color) !important;
+        border-bottom: var(--border-style) !important;
         padding-bottom: 6px !important;
         margin-top: 2rem !important;
         margin-bottom: 1.2rem !important;
-    }
+    }}
 
     /* 刪除 Streamlit 預設元件的圓角與陰影 */
-    div[data-testid="stMetricValue"] {
-        font-family: 'Fraunces', Georgia, serif !important;
+    div[data-testid="stMetricValue"] {{
+        font-family: var(--font-header) !important;
         font-weight: 900 !important;
-        color: #111111 !important;
-    }
+        color: var(--metric-value-color) !important;
+    }}
     
     /* YouBike 等資訊卡片：化身為報紙欄欄位 */
-    .metric-card {
-        background-color: transparent !important;
-        border-radius: 0px !important; /* 強制直角 */
+    .metric-card {{
+        background-color: var(--card-bg) !important;
+        border-radius: var(--radius) !important;
         padding: 15px !important;
-        border: 1px solid #111111 !important; /* 墨黑單實線 */
+        border: var(--border-style) !important;
+        box-shadow: var(--box-shadow) !important;
         margin-bottom: 15px !important;
-    }
+    }}
     
-    .metric-label {
+    .metric-label {{
         font-size: 0.85rem !important;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        color: #555555 !important;
-        font-family: 'Inter', sans-serif;
-    }
+        color: var(--text-color) !important;
+        opacity: 0.8;
+        font-family: var(--font-body);
+    }}
     
-    .metric-value {
+    .metric-value {{
         font-size: 1.8rem !important;
-        font-family: 'Fraunces', Georgia, serif !important;
+        font-family: var(--font-header) !important;
         font-weight: 900 !important;
-        color: #111111;
-    }
+        color: var(--metric-value-color);
+    }}
 
     /* 天氣卡片：由炫目漸層改為極簡新聞專欄風格 */
-    .weather-card {
-        background: transparent !important;
-        color: #111111 !important;
-        border-radius: 0px !important;
+    .weather-card {{
+        background: var(--card-bg) !important;
+        color: var(--text-color) !important;
+        border-radius: var(--radius) !important;
         padding: 20px !important;
-        border: 2px solid #111111 !important; /* 粗實線強調主要專欄 */
+        border: var(--border-style) !important;
+        box-shadow: var(--box-shadow) !important;
         margin-bottom: 20px !important;
-        box-shadow: none !important;
-    }
+    }}
     
-    .weather-title {
-        font-family: 'Fraunces', Georgia, serif !important;
+    .weather-title {{
+        font-family: var(--font-header) !important;
         font-size: 1.1rem !important;
         font-weight: bold !important;
-        border-bottom: 1px dashed #111111;
+        border-bottom: 1px dashed var(--border-color);
         padding-bottom: 8px;
         margin-bottom: 12px !important;
-    }
+    }}
     
-    .weather-temp {
-        font-family: 'Fraunces', Georgia, serif !important;
+    .weather-temp {{
+        font-family: var(--font-header) !important;
         font-size: 3rem !important;
         font-weight: 900 !important;
         line-height: 1 !important;
         margin-bottom: 10px;
-    }
+    }}
     
-    .weather-details {
+    .weather-details {{
         font-size: 0.95rem !important;
         line-height: 1.6 !important;
-    }
+    }}
 
     /* 調整警告橫幅 (st.warning / st.error) 符合報紙社論插頁風格 */
-    .stAlert {
-        border-radius: 0px !important;
-        border: 1px solid #111111 !important;
-        background-color: #FDF2F2 !important; /* 淡紅紙底 */
-        color: #CC0000 !important;
-    }
+    .stAlert {{
+        border-radius: var(--radius) !important;
+        border: 1px solid var(--alert-border) !important;
+        background-color: var(--alert-bg) !important;
+        color: var(--alert-border) !important;
+    }}
 
     /* 表格與 Dataframe 風格化 */
-    div[data-testid="stTable"], .element-container iframe {
-        border: 1px solid #111111 !important;
-        border-radius: 0px !important;
-    }
+    div[data-testid="stTable"], .element-container iframe {{
+        border: var(--border-style) !important;
+        border-radius: var(--radius) !important;
+    }}
     
     /* 側邊欄風格同步 */
-    section[data-testid="stSidebar"] {
-        background-color: #F2EFE9 !important; /* 稍微深一點的新聞紙色做區隔 */
-        border-right: 1px solid #111111 !important;
-    }
+    section[data-testid="stSidebar"] {{
+        background-color: var(--bg-color) !important;
+        filter: brightness(0.95);
+        border-right: 1px solid var(--border-color) !important;
+    }}
     
     /* 自訂雙線條 */
-    hr {
+    hr {{
         border: none !important;
-        border-top: 3px double #111111 !important;
+        border-top: var(--hr-style) !important;
         opacity: 1 !important;
         margin: 0.5rem 0 1.5rem 0 !important;
-    }
+    }}
 
-    /* Streamlit 按鈕新聞紙風格 */
-    div.stButton > button {
-        font-family: 'Fraunces', Georgia, serif !important;
+    /* Streamlit 按鈕風格 */
+    div.stButton > button {{
+        font-family: var(--font-header) !important;
         font-weight: 700 !important;
-        background-color: transparent !important;
-        color: #111111 !important;
-        border: 2px solid #111111 !important;
+        background-color: var(--card-bg) !important;
+        color: var(--text-color) !important;
+        border: 2px solid var(--border-color) !important;
         padding: 8px 16px !important;
-        border-radius: 0px !important; /* 強制直角 */
-        transition: all 0.1s ease !important; /* 快速硬切換 */
-    }
-    div.stButton > button:hover {
-        background-color: #111111 !important;
-        color: #F7F4EF !important; /* 反白效果 */
-        border: 2px solid #111111 !important;
-    }
-    div.stButton > button:active {
-        background-color: #111111 !important;
-        color: #F7F4EF !important;
-    }
+        border-radius: var(--radius) !important;
+        transition: all 0.1s ease !important;
+        box-shadow: var(--box-shadow) !important;
+    }}
+    div.stButton > button:hover {{
+        background-color: var(--text-color) !important;
+        color: var(--bg-color) !important;
+        border: 2px solid var(--text-color) !important;
+    }}
 
-    /* Streamlit 輸入框與選單新聞紙風格 */
-    div[data-testid="stTextInput"] input, div[data-testid="stSelectbox"] select, div[data-testid="stSelectbox"] div[role="button"] {
-        border-radius: 0px !important;
-        border: 1px solid #111111 !important;
-        background-color: #F7F4EF !important;
-        color: #111111 !important;
-        font-family: 'Inter', sans-serif !important;
-    }
-    div[data-baseweb="select"] {
-        border-radius: 0px !important;
-        border: 1px solid #111111 !important;
-        background-color: #F7F4EF !important;
-    }
+    /* Streamlit 輸入框與選單風格 */
+    div[data-testid="stTextInput"] input, div[data-testid="stSelectbox"] select, div[data-testid="stSelectbox"] div[role="button"] {{
+        border-radius: var(--radius) !important;
+        border: 1px solid var(--border-color) !important;
+        background-color: var(--card-bg) !important;
+        color: var(--text-color) !important;
+        font-family: var(--font-body) !important;
+    }}
+    div[data-baseweb="select"] {{
+        border-radius: var(--radius) !important;
+        border: 1px solid var(--border-color) !important;
+        background-color: var(--card-bg) !important;
+    }}
 
     /* 公告捲動容器與項目 */
-    .announcement-container {
+    .announcement-container {{
         max-height: 380px !important;
         overflow-y: auto !important;
-        border: 1px solid #111111 !important;
+        border: var(--border-style) !important;
+        border-radius: var(--radius) !important;
         padding: 12px !important;
         background-color: transparent !important;
         margin-bottom: 20px !important;
-    }
-    .announcement-card {
+    }}
+    .announcement-card {{
         padding: 15px !important;
         margin-bottom: 12px !important;
-        border: 1px solid #111111 !important;
-        font-family: 'Inter', sans-serif !important;
+        border: var(--border-style) !important;
+        border-radius: var(--radius) !important;
+        background-color: var(--card-bg) !important;
+        box-shadow: var(--box-shadow) !important;
+        font-family: var(--font-body) !important;
         font-size: 0.95rem !important;
         line-height: 1.6 !important;
-    }
-    .announcement-card:last-child {
+    }}
+    .announcement-card:last-child {{
         margin-bottom: 0px !important;
-    }
-    .announcement-card.urgent {
-        background-color: #FDF2F2 !important; /* 印章紅底色 */
-        color: #CC0000 !important;
-        border: 2px solid #CC0000 !important;
-    }
-    .announcement-card.normal {
-        background-color: transparent !important;
-        color: #111111 !important;
-    }
-    .announcement-header {
-        font-family: 'Fraunces', Georgia, serif !important;
+    }}
+    .announcement-card.urgent {{
+        background-color: var(--alert-bg) !important;
+        color: var(--alert-border) !important;
+        border: 2px solid var(--alert-border) !important;
+    }}
+    .announcement-card.normal {{
+        background-color: var(--card-bg) !important;
+        color: var(--text-color) !important;
+    }}
+    .announcement-header {{
+        font-family: var(--font-header) !important;
         font-weight: bold !important;
         font-size: 1.05rem !important;
         margin-bottom: 8px !important;
-        border-bottom: 1px dashed #111111;
+        border-bottom: 1px dashed var(--border-color);
         padding-bottom: 4px;
-    }
-    .announcement-card.urgent .announcement-header {
-        border-bottom: 1px dashed #CC0000 !important;
-    }
+    }}
+    .announcement-card.urgent .announcement-header {{
+        border-bottom: 1px dashed var(--alert-border) !important;
+    }}
 
     /* 報紙表格樣式 */
-    .news-table-container {
+    .news-table-container {{
         max-height: 320px !important;
         overflow-y: auto !important;
-        border: 1px solid #111111 !important;
+        border: var(--border-style) !important;
+        border-radius: var(--radius) !important;
         margin-bottom: 20px !important;
-    }
-    .news-table {
+    }}
+    .news-table {{
         width: 100% !important;
         border-collapse: collapse !important;
-        font-family: 'Inter', sans-serif !important;
+        font-family: var(--font-body) !important;
         font-size: 0.95rem !important;
-    }
-    .news-table th {
-        background-color: #F2EFE9 !important;
-        color: #111111 !important;
-        border-bottom: 2px solid #111111 !important;
+    }}
+    .news-table th {{
+        background-color: var(--bg-color) !important;
+        filter: brightness(0.95);
+        color: var(--text-color) !important;
+        border-bottom: 2px solid var(--border-color) !important;
         padding: 10px !important;
-        font-family: 'Fraunces', Georgia, serif !important;
+        font-family: var(--font-header) !important;
         font-weight: 700 !important;
         text-align: left !important;
         position: sticky !important;
         top: 0 !important;
         z-index: 10 !important;
-    }
-    .news-table td {
+    }}
+    .news-table td {{
         padding: 10px !important;
-        border-bottom: 1px solid #111111 !important;
-        color: #111111;
-    }
-    .news-table tr:last-child td {
+        border-bottom: 1px solid var(--border-color) !important;
+        color: var(--text-color) !important;
+    }}
+    .news-table tr:last-child td {{
         border-bottom: none !important;
-    }
-    .news-table tbody tr:hover {
-        background-color: #F2EFE9 !important;
-    }
+    }}
+    .news-table tbody tr:hover {{
+        background-color: var(--card-bg) !important;
+        filter: brightness(0.98);
+    }}
 
     /* 自訂捲動軸樣式 */
-    ::-webkit-scrollbar {
+    ::-webkit-scrollbar {{
         width: 8px !important;
         height: 8px !important;
-    }
-    ::-webkit-scrollbar-track {
-        background: #F7F4EF !important;
-        border-left: 1px solid #111111 !important;
-    }
-    ::-webkit-scrollbar-thumb {
-        background: #111111 !important;
-        border-radius: 0px !important;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-        background: #555555 !important;
-    }
+    }}
+    ::-webkit-scrollbar-track {{
+        background: var(--bg-color) !important;
+    }}
+    ::-webkit-scrollbar-thumb {{
+        background: var(--scrollbar-thumb) !important;
+        border-radius: var(--radius) !important;
+    }}
+    ::-webkit-scrollbar-thumb:hover {{
+        opacity: 0.8;
+    }}
 
     /* 顏色與字體特規樣式 */
-    .text-blue {
+    .text-blue {{
         color: #0000AA !important;
-    }
-    .text-green {
+    }}
+    .text-green {{
         color: #00AA00 !important;
-    }
-    .text-red {
+    }}
+    .text-red {{
         color: #CC0000 !important;
-    }
-    .font-bold {
+    }}
+    /* 暗色模式下調整顏色以增強可讀性 */
+    .stApp[style*="--bg-color: #0F172A"] .text-blue {{
+        color: #38BDF8 !important;
+    }}
+    .stApp[style*="--bg-color: #0F172A"] .text-green {{
+        color: #34D399 !important;
+    }}
+    .stApp[style*="--bg-color: #0F172A"] .text-red {{
+        color: #F87171 !important;
+    }}
+
+    .font-bold {{
         font-weight: bold !important;
-    }
+    }}
 
     /* 回到最上方按鈕 */
-    .back-to-top-btn img {
+    .back-to-top-btn img {{
         width: 50px;
         height: 50px;
         cursor: pointer;
-        border: 2px solid #111111;
-        background-color: #F7F4EF;
+        border: 2px solid var(--border-color);
+        background-color: var(--card-bg);
         padding: 5px;
         transition: all 0.1s ease;
-        box-shadow: 2px 2px 0px #111111;
-    }
-    .back-to-top-btn img:hover {
+        box-shadow: var(--box-shadow);
+        border-radius: var(--radius);
+    }}
+    .back-to-top-btn img:hover {{
         transform: scale(1.1);
-        background-color: #111111;
-        border-color: #111111;
+        background-color: var(--text-color);
+        border-color: var(--text-color);
         filter: invert(1) !important;
-    }
+    }}
 
     /* 資料更新按鈕 */
-    .refresh-btn img {
+    .refresh-btn img {{
         width: 50px;
         height: 50px;
         cursor: pointer;
-        border: 2px solid #111111;
-        background-color: #F7F4EF;
+        border: 2px solid var(--border-color);
+        background-color: var(--card-bg);
         padding: 4px;
         transition: all 0.1s ease;
-        box-shadow: 2px 2px 0px #111111;
-    }
-    .refresh-btn img:hover {
+        box-shadow: var(--box-shadow);
+        border-radius: var(--radius);
+    }}
+    .refresh-btn img:hover {{
         transform: scale(1.1);
-        background-color: #111111;
-        border-color: #111111;
+        background-color: var(--text-color);
+        border-color: var(--text-color);
         filter: invert(1) !important;
-    }
+    }}
+
+    /* SAC Components 樣式對齊 */
+    .ant-segmented {{
+        background-color: var(--card-bg) !important;
+        color: var(--text-color) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: var(--radius) !important;
+    }}
+    .ant-segmented-item-selected {{
+        background-color: var(--text-color) !important;
+        color: var(--bg-color) !important;
+        border-radius: var(--radius) !important;
+    }}
+    
+    /* Streamlit 摺疊面板樣式調整 */
+    .streamlit-expanderHeader {{
+        background-color: var(--card-bg) !important;
+        color: var(--text-color) !important;
+        border: var(--border-style) !important;
+        border-radius: var(--radius) !important;
+        font-family: var(--font-header) !important;
+    }}
+    .streamlit-expanderContent {{
+        background-color: var(--card-bg) !important;
+        color: var(--text-color) !important;
+        border: var(--border-style) !important;
+        border-top: none !important;
+        border-radius: 0 0 var(--radius) var(--radius) !important;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -379,15 +695,51 @@ if "refresh" in st.query_params:
         fetch_taipei_gov_announcements.clear()
         fetch_youbike_data.clear()
         fetch_bus_arrivals.clear()
+        google_geocode_or_search.clear()
+        fetch_google_place_details.clear()
     except Exception:
         pass
     st.rerun()
 
 # ----------------- Global Memory Cache Helper Functions -----------------
 
+def get_district_from_coords(lat, lng, loc_name=""):
+    if "南港" in loc_name:
+        return "南港區"
+    if "101" in loc_name or "信義" in loc_name:
+        return "信義區"
+    if "港墘" in loc_name or "內湖" in loc_name or "石潭" in loc_name or "統一" in loc_name:
+        return "內湖區"
+    if "台北車站" in loc_name or "中正" in loc_name:
+        return "中正區"
+        
+    districts = {
+        "內湖區": (25.0688, 121.5909),
+        "南港區": (25.0433, 121.6186),
+        "信義區": (25.0302, 121.5678),
+        "中正區": (25.0421, 121.5198),
+        "大安區": (25.0264, 121.5434),
+        "中山區": (25.0685, 121.5433),
+        "松山區": (25.0562, 121.5644),
+        "萬華區": (25.0268, 121.4962),
+        "士林區": (25.0922, 121.5245),
+        "北投區": (25.1321, 121.5011),
+        "大同區": (25.0645, 121.5133),
+        "文山區": (24.9881, 121.5701)
+    }
+    
+    min_dist = 999999.0
+    guessed_district = "內湖區"
+    for name, coords in districts.items():
+        d = haversine_distance(lat, lng, coords[0], coords[1])
+        if d < min_dist:
+            min_dist = d
+            guessed_district = name
+    return guessed_district
+
 # 1. Weather Data (TTL = 30 mins)
 @st.cache_data(ttl=1800)
-def fetch_weather():
+def fetch_weather(district_name):
     api_key = os.getenv("CWA_API_KEY")
     if not api_key:
         raise ValueError("缺少中央氣象署 API 金鑰 (CWA_API_KEY)")
@@ -395,7 +747,7 @@ def fetch_weather():
     url = f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-D0047-061"
     params = {
         "Authorization": api_key,
-        "locationName": "內湖區"
+        "locationName": district_name
     }
     
     # We bypass SSL verification if CWA certificate is missing Subject Key Identifier
@@ -526,28 +878,28 @@ def fetch_youbike_data():
     if not data:
         raise RuntimeError("無法連線 YouBike API 伺服器")
         
-    target_stations = ["統一數位大樓", "石潭路", "成功路", "新湖"]
-    filtered_stations = []
-    
+    all_stations = []
     for item in data:
         sna = item.get("sna", "")
         # Remove YouBike2.0_ prefix for display
         clean_name = sna.replace("YouBike2.0_", "")
         
-        if any(ts in clean_name for ts in target_stations):
-            # API might return available_rent_bikes/available_return_bikes or sbi/bemp
-            sbi = item.get("available_rent_bikes") if item.get("available_rent_bikes") is not None else item.get("sbi", 0)
-            bemp = item.get("available_return_bikes") if item.get("available_return_bikes") is not None else item.get("bemp", 0)
-            update_time = item.get("updateTime") or item.get("mday") or "N/A"
-            
-            filtered_stations.append({
-                "sna": clean_name,
-                "sbi": sbi,
-                "bemp": bemp,
-                "update_time": update_time
-            })
-            
-    return filtered_stations
+        sbi = item.get("available_rent_bikes") if item.get("available_rent_bikes") is not None else item.get("sbi", 0)
+        bemp = item.get("available_return_bikes") if item.get("available_return_bikes") is not None else item.get("bemp", 0)
+        update_time = item.get("updateTime") or item.get("mday") or "N/A"
+        lat = item.get("latitude")
+        lng = item.get("longitude")
+        
+        all_stations.append({
+            "sna": clean_name,
+            "sbi": sbi,
+            "bemp": bemp,
+            "update_time": update_time,
+            "lat": float(lat) if lat is not None else None,
+            "lng": float(lng) if lng is not None else None
+        })
+        
+    return all_stations
 
 # 4. Bus Static Stop/Route mapping (TTL = 24 hours)
 @st.cache_data(ttl=86400)
@@ -563,15 +915,14 @@ def fetch_bus_static_data():
         r_stops = client.get(stops_url)
         if r_stops.status_code == 200:
             stops_json = json.loads(gzip.decompress(r_stops.content).decode('utf-8'))
-            target_stop_names = ["石潭成功路口", "新湖一路口", "南京金莊路口", "石潭金豐街口"]
             for s in stops_json["BusInfo"]:
-                for name in target_stop_names:
-                    if name in s["nameZh"]:
-                        stops_dict[int(s["Id"])] = {
-                            "nameZh": s["nameZh"],
-                            "routeId": int(s["routeId"]),
-                            "goBack": int(s["goBack"])
-                        }
+                stops_dict[int(s["Id"])] = {
+                    "nameZh": s["nameZh"],
+                    "routeId": int(s["routeId"]),
+                    "goBack": int(s["goBack"]),
+                    "lat": float(s["latitude"]) if s.get("latitude") is not None else None,
+                    "lng": float(s["longitude"]) if s.get("longitude") is not None else None
+                }
                         
         # Load routes
         r_routes = client.get(routes_url)
@@ -584,9 +935,11 @@ def fetch_bus_static_data():
 
 # 5. Bus Estimates (TTL = 1 min)
 @st.cache_data(ttl=60)
-def fetch_bus_arrivals():
+def fetch_bus_arrivals(target_stop_ids_tuple):
     stops_dict, routes_dict = fetch_bus_static_data()
     estimates_url = "https://tcgbusfs.blob.core.windows.net/blobbus/GetEstimateTime.gz"
+    
+    target_stop_ids = set(target_stop_ids_tuple)
     
     with httpx.Client(verify=False, timeout=3.0) as client:
         r = client.get(estimates_url)
@@ -598,7 +951,7 @@ def fetch_bus_arrivals():
         arrivals = []
         for est in estimates_json["BusInfo"]:
             stop_id = int(est["StopID"])
-            if stop_id in stops_dict:
+            if stop_id in target_stop_ids and stop_id in stops_dict:
                 stop_info = stops_dict[stop_id]
                 route_name = routes_dict.get(int(est["RouteID"]), f"路線 {est['RouteID']}")
                 est_time = int(est["EstimateTime"])
@@ -672,13 +1025,40 @@ def get_mock_bus_arrivals():
 
 # ----------------- UI Rendering Implementation -----------------
 
+# Predefined landmark coordinates for quick selection
+predefined_landmarks = {
+    "統一數位大樓 (內湖石潭路155號)": (25.059727, 121.589632),
+    "捷運昆陽站": (25.050227, 121.593327),
+    "捷運港墘站": (25.079800, 121.575100),
+    "內湖好市多": (25.061700, 121.579600),
+    "台北車站": (25.047800, 121.517000),
+    "南港車站": (25.052187, 121.606775),
+    "台北101 / 信義商圈": (25.033976, 121.564539),
+    "內科園區 (湖濱路)": (25.075000, 121.583000),
+}
+
+# Coordinate State Setup
+if "user_lat" not in st.session_state:
+    st.session_state["user_lat"] = 25.059727
+if "user_lng" not in st.session_state:
+    st.session_state["user_lng"] = 121.589632
+if "loc_name" not in st.session_state:
+    st.session_state["loc_name"] = "統一數位大樓 (內湖石潭路155號)"
+
+current_lat = st.session_state["user_lat"]
+current_lng = st.session_state["user_lng"]
+current_loc_name = st.session_state["loc_name"]
+
+# Geopositioning helpers
+district_name = get_district_from_coords(current_lat, current_lng, current_loc_name)
+
 # Cache Warnings Helper
 warning_messages = []
 
 # Fetch All Data Streams with Defensive Fallbacks
 # 1. Weather
 try:
-    weather = fetch_weather()
+    weather = fetch_weather(district_name)
 except Exception as e:
     weather = get_mock_weather()
     warning_messages.append(f"天氣資料更新失敗，目前顯示暫存資訊 (錯誤訊息：{e})")
@@ -693,16 +1073,61 @@ except Exception as e:
 
 # 3. YouBike
 try:
-    youbike_list = fetch_youbike_data()
+    all_youbike_stations = fetch_youbike_data()
+    youbike_list = []
+    for yb in all_youbike_stations:
+        if yb["lat"] is not None and yb["lng"] is not None:
+            dist = haversine_distance(current_lat, current_lng, yb["lat"], yb["lng"])
+            yb["distance_meter"] = int(dist)
+            youbike_list.append(yb)
+            
+    # Sort by distance
+    youbike_list.sort(key=lambda x: x["distance_meter"])
+    youbike_list = youbike_list[:3]
 except Exception as e:
     youbike_list = get_mock_youbike_data()
+    for idx, item in enumerate(youbike_list):
+        item["distance_meter"] = (idx + 1) * 120
     warning_messages.append(f"YouBike 即時資料更新失敗，目前顯示暫存資訊 (錯誤訊息：{e})")
 
 # 4. Bus Dynamics
 try:
-    bus_list = fetch_bus_arrivals()
+    stops_dict, routes_dict = fetch_bus_static_data()
+    
+    # Find nearest 5 unique stop names
+    unique_stops_with_distance = []
+    seen_stop_names = set()
+    for s_id, s_info in stops_dict.items():
+        if s_info["lat"] is not None and s_info["lng"] is not None:
+            dist = haversine_distance(current_lat, current_lng, s_info["lat"], s_info["lng"])
+            name = s_info["nameZh"]
+            if name not in seen_stop_names:
+                unique_stops_with_distance.append((name, dist))
+                seen_stop_names.add(name)
+                
+    unique_stops_with_distance.sort(key=lambda x: x[1])
+    closest_stop_names = [x[0] for x in unique_stops_with_distance[:5]]
+    
+    # Collect StopIDs for these stop names
+    target_stop_ids = []
+    for s_id, s_info in stops_dict.items():
+        if s_info["nameZh"] in closest_stop_names:
+            target_stop_ids.append(s_id)
+            
+    bus_list = fetch_bus_arrivals(tuple(target_stop_ids))
+    
+    stop_distance_map = {}
+    for name, dist in unique_stops_with_distance:
+        stop_distance_map[name] = int(dist)
+        
+    for bus in bus_list:
+        bus["distance_meter"] = stop_distance_map.get(bus["stop"], 999)
+        
+    bus_list.sort(key=lambda x: (x["distance_meter"], x["route"]))
 except Exception as e:
     bus_list = get_mock_bus_arrivals()
+    for item in bus_list:
+        item["distance_meter"] = 180
     warning_messages.append(f"公車動態資料更新失敗，目前顯示暫存資訊 (錯誤訊息：{e})")
 
 # 5. Local Announcements from SQLite
@@ -756,6 +1181,72 @@ with col_header_right:
 
 st.markdown("---")
 
+# ----------------- Positioning System UI -----------------
+st.subheader("📍 平台中心定位設定")
+col_pos_mode, col_pos_val = st.columns([1, 2])
+
+with col_pos_mode:
+    pos_mode = sac.segmented(
+        items=[
+            sac.SegmentedItem(label="📍 常用地標", icon="geo-alt"),
+            sac.SegmentedItem(label="🔍 地址搜尋", icon="search"),
+            sac.SegmentedItem(label="🛰️ GPS 定位", icon="radar")
+        ],
+        align="left",
+        color="dark",
+        size="sm",
+        key="pos_mode_selector"
+    )
+
+with col_pos_val:
+    if pos_mode == "📍 常用地標":
+        landmark_list = list(predefined_landmarks.keys())
+        default_idx = 0
+        if st.session_state["loc_name"] in landmark_list:
+            default_idx = landmark_list.index(st.session_state["loc_name"])
+        selected_landmark = st.selectbox("請選擇地標作為定位點", landmark_list, index=default_idx)
+        if selected_landmark and selected_landmark != st.session_state["loc_name"]:
+            st.session_state["user_lat"], st.session_state["user_lng"] = predefined_landmarks[selected_landmark]
+            st.session_state["loc_name"] = selected_landmark
+            st.rerun()
+            
+    elif pos_mode == "🔍 地址搜尋":
+        col_search_input, col_search_btn = st.columns([3, 1])
+        with col_search_input:
+            search_query = st.text_input("輸入地址或地名 (例如: 內湖大潤發)", value="", placeholder="輸入地標...", key="addr_search_query")
+        with col_search_btn:
+            st.write("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+            run_search = st.button("搜尋", key="run_search_btn")
+            
+        if run_search and search_query:
+            coords = google_geocode_or_search(search_query)
+            if coords:
+                st.session_state["user_lat"], st.session_state["user_lng"] = coords
+                st.session_state["loc_name"] = f"搜尋: {search_query}"
+                st.rerun()
+            else:
+                st.error("找不到該位置，請確認拼字或改用其他關鍵字。")
+                
+    elif pos_mode == "🛰️ GPS 定位":
+        st.write("📡 正在向瀏覽器要求 GPS 權限...")
+        loc_data = get_geolocation()
+        if loc_data:
+            if 'error' in loc_data:
+                st.warning(f"無法取得 GPS 定位：{loc_data['error'].get('message', '未知錯誤')}")
+            else:
+                lat_gps = loc_data['coords']['latitude']
+                lng_gps = loc_data['coords']['longitude']
+                if abs(st.session_state["user_lat"] - lat_gps) > 0.0001 or abs(st.session_state["user_lng"] - lng_gps) > 0.0001:
+                    st.session_state["user_lat"] = lat_gps
+                    st.session_state["user_lng"] = lng_gps
+                    st.session_state["loc_name"] = "瀏覽器 GPS 定位"
+                    st.rerun()
+        else:
+            st.info("請在瀏覽器彈出視窗中允許位置存取權限。")
+
+st.markdown(f"**目前中心定位點**：{st.session_state['loc_name']} `({st.session_state['user_lat']:.6f}, {st.session_state['user_lng']:.6f})`")
+st.markdown("---")
+
 # Parse temperature and precipitation values for visual threshold highlighting
 temp_class = ""
 apparent_temp_class = ""
@@ -789,10 +1280,10 @@ if weather:
         pop_class = "text-blue" if pop_val <= 30 else "text-red"
 
 # Today's Weather Section
-st.subheader("☀️ 今日即時天氣 (內湖區)")
+st.subheader(f"☀️ 今日即時天氣 ({district_name})")
 st.markdown(strip_html(f"""
 <div class="weather-card">
-    <div class="weather-title">台北市內湖區石潭路 155 號</div>
+    <div class="weather-title">定位點：{st.session_state['loc_name']}</div>
     <div class="weather-temp {temp_class}">{weather['temp']}</div>
     <div class="weather-details">
         <b>天氣現象</b>：{weather['desc']}<br/>
@@ -828,7 +1319,7 @@ else:
     st.write("目前無任何公告")
 
 # YouBike Section
-st.subheader("🚲 YouBike 2.0 即時站點看板")
+st.subheader(f"🚲 YouBike 2.0 即時站點看板（距 {st.session_state['loc_name'][:10]}... 最近）")
 if youbike_list:
     cols_yb = st.columns(min(len(youbike_list), 3))
     for idx, yb in enumerate(youbike_list[:3]):
@@ -837,9 +1328,12 @@ if youbike_list:
             bemp_val = int(yb['bemp']) if yb['bemp'] is not None else 0
             sbi_color_class = "text-red" if sbi_val <= 2 else "text-blue"
             bemp_color_class = "text-red" if bemp_val <= 2 else "text-green"
+            dist_m = yb.get('distance_meter', '?')
+            dist_label = f"{dist_m} 公尺" if isinstance(dist_m, int) else "N/A"
             st.markdown(strip_html(f"""
             <div class="metric-card">
-                <div style="font-weight: bold; font-size: 1rem; color: #111111; font-family: 'Fraunces', serif; border-bottom: 1px dashed #111111; padding-bottom: 5px; margin-bottom: 8px;">{yb['sna']}</div>
+                <div style="font-weight: bold; font-size: 0.95rem; color: var(--text-color); font-family: var(--font-header); border-bottom: 1px dashed var(--border-color); padding-bottom: 5px; margin-bottom: 8px;">{yb['sna']}</div>
+                <div style="font-size: 0.75rem; color: var(--accent-color); margin-bottom: 8px;">📍 距離中心點約 {dist_label}</div>
                 <div style="display: flex; justify-content: space-between; margin-top: 10px;">
                     <div>
                         <span class="metric-label">可借車</span><br/>
@@ -850,14 +1344,14 @@ if youbike_list:
                         <span class="metric-value {bemp_color_class}">{yb['bemp']}</span>
                     </div>
                 </div>
-                <div style="font-size: 0.75rem; color: #555555; margin-top: 8px;">更新：{yb['update_time']}</div>
+                <div style="font-size: 0.75rem; color: var(--text-color); opacity: 0.6; margin-top: 8px;">更新：{yb['update_time']}</div>
             </div>
             """), unsafe_allow_html=True)
 else:
     st.write("目前無鄰近 YouBike 2.0 站點資料")
 
 # Bus Arrivals Section (with Scrollbar)
-st.subheader("🚌 大台北公車即時到站動態")
+st.subheader(f"🚌 大台北公車即時到站動態（鄰近 {st.session_state['loc_name'][:10]}... 站牌）")
 if bus_list:
     bus_rows_html = []
     for bus in bus_list:
@@ -867,11 +1361,13 @@ if bus_list:
         # Check if estimate time is <= 2 minutes (120 seconds) or "即將到站"
         is_near = (0 <= bus['raw_time'] <= 120) or (bus['desc'] == "即將到站")
         time_color_class = "text-red font-bold" if is_near else row_color_class
+        dist_m = bus.get('distance_meter', '')
+        dist_label = f"{dist_m}m" if isinstance(dist_m, int) else ""
         
         row_html = strip_html(f"""
         <tr>
             <td class="font-bold {row_color_class}">{bus['route']}</td>
-            <td class="{row_color_class}">{bus['stop']}</td>
+            <td class="{row_color_class}">{bus['stop']}<br/><small style="opacity:0.65;">{dist_label}</small></td>
             <td class="{row_color_class}">{bus['go_back']}</td>
             <td class="{time_color_class}">{bus['desc']}</td>
         </tr>
@@ -901,7 +1397,12 @@ else:
 st.markdown("---")
 
 # Row 3: Lunch Recommendations (Full Width)
-st.subheader("🍲 石潭路大樓周邊午餐推薦 Top 10")
+st.subheader("🍲 周邊午餐推薦 Top 10（含 Google Places 評論）")
+
+has_places_key = bool(os.getenv("GOOGLE_PLACES_API_KEY"))
+if not has_places_key:
+    st.info("💡 若設定 `.env` 中的 `GOOGLE_PLACES_API_KEY`，展開餐廳可查看 Google 即時評論與營業時間。")
+
 # Category Filters
 category_options = ["全部", "便當", "麵食", "日式", "韓式", "美式", "健康餐"]
 sort_options = ["評分高低 (Google Rating)", "距離近遠 (Distance)"]
@@ -918,25 +1419,54 @@ if selected_category != "全部":
     query_res = query_res.filter(Restaurant.category == selected_category)
 
 if "評分" in selected_sort:
-    # Sort by rating desc, then reviews desc
     results = query_res.order_by(Restaurant.google_rating.desc(), Restaurant.review_count.desc()).limit(10).all()
 else:
-    # Sort by distance asc
     results = query_res.order_by(Restaurant.distance_meter.asc()).limit(10).all()
 
 if results:
-    res_data = []
-    for r in results:
-        res_data.append({
-            "餐廳名稱": r.name,
-            "分類": r.category,
-            "Google 評分": f"⭐ {r.google_rating}",
-            "評論數": f"{r.review_count} 則",
-            "價位": "¥" * r.price_level,
-            "步行距離": f"{r.distance_meter} 公尺"
-        })
-    df_res = pd.DataFrame(res_data)
-    st.dataframe(df_res, use_container_width=True, hide_index=True)
+    for rank, r in enumerate(results, 1):
+        price_str = "¥" * r.price_level
+        expander_label = f"{'🥇' if rank==1 else '🥈' if rank==2 else '🥉' if rank==3 else f'#{rank}'}  {r.name}  |  ⭐ {r.google_rating}  |  {r.category}  |  {price_str}  |  📍 {r.distance_meter} 公尺"
+        with st.expander(expander_label, expanded=False):
+            # Fetch Google Places details
+            with st.spinner(f"正在查詢 {r.name} 的 Google Places 資料..."):
+                place_details = fetch_google_place_details(r.name, current_lat, current_lng)
+            
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                if place_details["open_now"] is True:
+                    st.markdown("🟢 **目前營業中**")
+                elif place_details["open_now"] is False:
+                    st.markdown("🔴 **目前休息中**")
+                else:
+                    st.markdown("⚪ 營業狀態未知")
+                st.markdown(f"**Google 評分**: ⭐ {place_details['rating']} / 5")
+                st.markdown(f"**餐廳類型**: {r.category}  |  **價位**: {price_str}")
+                st.markdown(f"**評論數**: {r.review_count} 則")
+                st.markdown(f"**距離中心點**: 約 {r.distance_meter} 公尺")
+                if place_details.get("is_mock"):
+                    st.caption("⚠️ 以下為模擬資料（需設定 Google Places API 金鑰以取得即時資訊）")
+                maps_url = f"https://www.google.com/maps/search/{r.name.replace(' ', '+')}+台北"
+                st.markdown(f"[🗺️ 在 Google Maps 上開啟]({maps_url})")
+                
+            with c2:
+                if place_details["weekday_text"]:
+                    with st.expander("📅 每週營業時間", expanded=False):
+                        for day_info in place_details["weekday_text"]:
+                            st.caption(day_info)
+                
+                if place_details["reviews"]:
+                    st.markdown("**💬 最新顧客評論**")
+                    for rev in place_details["reviews"]:
+                        stars = "⭐" * int(rev.get("rating", 5))
+                        st.markdown(strip_html(f"""
+                        <div style="border-left: 3px solid var(--accent-color); padding: 8px 12px; margin-bottom: 10px; background-color: var(--card-bg); border-radius: 0 var(--radius) var(--radius) 0;">
+                            <div style="font-size: 0.85rem; font-weight: bold;">{rev['author']} {stars} <span style="opacity:0.6; font-weight:normal;">{rev['time']}</span></div>
+                            <div style="font-size: 0.88rem; margin-top: 4px; line-height: 1.5;">{rev['text']}</div>
+                        </div>
+                        """), unsafe_allow_html=True)
+                else:
+                    st.caption("暫無評論資料")
 else:
     st.write("無符合篩選條件的餐廳")
 
