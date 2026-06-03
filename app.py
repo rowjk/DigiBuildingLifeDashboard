@@ -631,6 +631,15 @@ st.markdown(f"""
         border: none !important;
         border-radius: 0px !important;
     }}
+
+    /* 移除主題切換元件的邊框與底色 */
+    .element-container iframe[title*="buttons"] {{
+        border: none !important;
+        border-radius: 0px !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }}
     
     /* 側邊欄風格同步 */
     section[data-testid="stSidebar"] {{
@@ -1866,19 +1875,21 @@ st.markdown("---")
 
 # ----------------- Theme Switcher UI -----------------
 st.markdown("<div style='font-weight: bold; margin-bottom: 4px; font-size: 0.95rem;'>🎨 主題風格切換</div>", unsafe_allow_html=True)
-selected_theme_val = sac.buttons(
-    items=[
-        sac.ButtonsItem(label="新聞紙經典"),
-        sac.ButtonsItem(label="北歐極簡"),
-        sac.ButtonsItem(label="暖陽沙黃")
-    ],
-    direction="horizontal",
-    align="start",
-    variant="filled",
-    color="dark",
-    size="sm",
-    key="theme_switcher_main"
-)
+col_theme1, col_theme2 = st.columns([1, 1])
+with col_theme1:
+    selected_theme_val = sac.buttons(
+        items=[
+            sac.ButtonsItem(label="新聞紙經典"),
+            sac.ButtonsItem(label="北歐極簡"),
+            sac.ButtonsItem(label="暖陽沙黃")
+        ],
+        direction="horizontal",
+        use_container_width=True,
+        variant="filled",
+        color="dark",
+        size="sm",
+        key="theme_switcher_main"
+    )
 
 # ----------------- Positioning System UI -----------------
 st.subheader("＃ 平台中心定位設定")
