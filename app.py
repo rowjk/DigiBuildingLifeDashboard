@@ -756,9 +756,10 @@ with col_header_right:
 
 st.markdown("---")
 
-# Parse temperature values for visual threshold highlighting
+# Parse temperature and precipitation values for visual threshold highlighting
 temp_class = ""
 apparent_temp_class = ""
+pop_class = ""
 if weather:
     def parse_temp_num(t_str):
         try:
@@ -779,9 +780,13 @@ if weather:
 
     temp_val = parse_temp_num(weather.get('temp'))
     apparent_temp_val = parse_temp_num(weather.get('apparent_temp'))
+    pop_val = parse_temp_num(weather.get('pop'))
     
     temp_class = get_temp_class(temp_val)
     apparent_temp_class = get_temp_class(apparent_temp_val)
+    
+    if pop_val is not None:
+        pop_class = "text-blue" if pop_val <= 30 else "text-red"
 
 # Today's Weather Section
 st.subheader("☀️ 今日即時天氣 (內湖區)")
@@ -792,7 +797,7 @@ st.markdown(strip_html(f"""
     <div class="weather-details">
         <b>天氣現象</b>：{weather['desc']}<br/>
         <b>體感溫度</b>：<span class="{apparent_temp_class}">{weather['apparent_temp']}</span><br/>
-        <b>降雨機率</b>：{weather['pop']}<br/>
+        <b>降雨機率</b>：<span class="{pop_class}">{weather['pop']}</span><br/>
         <small style="opacity: 0.8;">更新時間：{weather['time']}</small>
     </div>
 </div>
