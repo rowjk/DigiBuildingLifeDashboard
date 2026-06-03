@@ -58,7 +58,9 @@ def google_geocode_or_search(query):
         "南港車站": (25.052187, 121.606775),
         "台北101": (25.033976, 121.564539),
         "捷運南港展覽館站": (25.0558, 121.6173),
-        "南港展覽館": (25.0558, 121.6173)
+        "南港展覽館": (25.0558, 121.6173),
+        "富康公園": (25.052429, 121.617524),
+        "南港新富公園": (25.052429, 121.617524)
     }
     for k, v in predefined.items():
         if k in query:
@@ -949,7 +951,7 @@ def get_district_from_coords(lat, lng, loc_name=""):
     district_name = ""
     
     # Predefined landmark mappings to bypass network lookups
-    if "南港" in loc_name:
+    if "南港" in loc_name or "富康" in loc_name or "新富" in loc_name:
         city_name, district_name = "台北市", "南港區"
     elif "101" in loc_name or "信義" in loc_name:
         city_name, district_name = "台北市", "信義區"
@@ -1594,6 +1596,7 @@ def get_mock_bus_arrivals():
 predefined_landmarks = {
     "統一數位大樓 (內湖石潭路155號)": (25.059727, 121.589632),
     "捷運南港展覽館站": (25.0558, 121.6173),
+    "南港新富公園": (25.052429, 121.617524),
     "捷運昆陽站": (25.050227, 121.593327),
     "捷運港墘站": (25.079800, 121.575100),
     "內湖好市多": (25.061700, 121.579600),
