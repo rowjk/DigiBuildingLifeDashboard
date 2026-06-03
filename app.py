@@ -635,6 +635,13 @@ st.markdown(f"""
         box-shadow: none !important;
     }}
 
+    /* 限制按鈕選項 iframe 的高度以消除下方多餘空白 */
+    .element-container iframe[src*="buttons"],
+    .element-container iframe[title*="buttons"] {{
+        height: 42px !important;
+    }}
+
+
 
     
     /* 側邊欄風格同步 */
@@ -1870,7 +1877,6 @@ with col_header_right:
 st.markdown("---")
 
 # ----------------- Theme Switcher UI -----------------
-st.markdown("<div style='font-weight: bold; margin-bottom: 4px; font-size: 0.95rem;'>🎨 主題風格切換</div>", unsafe_allow_html=True)
 col_theme1, col_theme2 = st.columns([1, 1])
 with col_theme1:
     selected_theme_val = sac.buttons(
