@@ -447,8 +447,8 @@ st.markdown(f"""
         color: var(--text-color) !important;
         border-bottom: var(--border-style) !important;
         padding-bottom: 6px !important;
-        margin-top: 2rem !important;
-        margin-bottom: 1.2rem !important;
+        margin-top: 1.2rem !important;
+        margin-bottom: 0.8rem !important;
     }}
 
     /* 刪除 Streamlit 預設元件的圓角與陰影 */
@@ -637,7 +637,10 @@ st.markdown(f"""
 
     /* 限制按鈕選項 iframe 的高度以消除下方多餘空白 */
     .element-container iframe[src*="buttons"],
-    .element-container iframe[title*="buttons"] {{
+    .element-container iframe[title*="buttons"],
+    .element-container iframe[src*="streamlit_antd_components"],
+    .element-container iframe[title*="streamlit_antd_components"],
+    div[data-testid="stCustomComponentV1"] iframe {{
         height: 42px !important;
     }}
 
@@ -656,7 +659,7 @@ st.markdown(f"""
         border: none !important;
         border-top: var(--hr-style) !important;
         opacity: 1 !important;
-        margin: 0.5rem 0 1.5rem 0 !important;
+        margin: 0.5rem 0 0.5rem 0 !important;
     }}
 
     /* Streamlit 按鈕風格 */
