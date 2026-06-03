@@ -173,6 +173,8 @@
    * 修正了 Mock 公告列表的建立日期與 Mock 路況的時間種子。
 4. **頁尾更新日期（Footer）時區對齊**：
    * 將頁尾版本更新資訊中的 `datetime.date.today()` 改為 `datetime.datetime.now(tz_utc8).strftime("%Y-%m-%d")`，確保在午夜時分，台北的更新日期與系統的換日線完全一致，不因伺服器 UTC 時差而延遲 8 小時更新。
+5. **摺疊面板 (Expander) 卡片間距縮減 50%**：
+   * 將 `[data-testid="stExpander"]`（美食推薦摺疊面板卡片）的底部外距從 `12px` 減半為 `6px`，並將 Streamlit 內層區塊包裝容器 `.element-container` 的 `margin-bottom` 覆寫為 `6px !important`。使卡片之間的垂直空行縮減 50%，整體版面排列更加精緻、緊湊。
 
 ---
 
