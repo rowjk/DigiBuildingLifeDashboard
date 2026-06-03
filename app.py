@@ -908,12 +908,29 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ----------------- Time-based Auto-Refresh -----------------
-# Trigger refresh every 60 seconds
-count = st_autorefresh(interval=60000, key="dashboard_refresher")
+# Trigger refresh every 300 seconds (5 minutes)
+count = st_autorefresh(interval=300000, key="dashboard_refresher")
+
+# Initialize or track auto-refresh state to sync client-side countdown
+if "last_count" not in st.session_state:
+    st.session_state.last_count = 0
+    st.session_state.last_refresh_time = datetime.datetime.now().timestamp()
+
+if count != st.session_state.last_count:
+    st.session_state.last_count = count
+    st.session_state.last_refresh_time = datetime.datetime.now().timestamp()
+
+# Calculate remaining seconds for the current 300-second cycle
+elapsed_seconds = datetime.datetime.now().timestamp() - st.session_state.last_refresh_time
+remaining_seconds = max(0, int(300 - elapsed_seconds))
 
 # ----------------- Manual Refresh Query Param Handler -----------------
 if "refresh" in st.query_params:
     st.query_params.clear()
+    if "last_count" in st.session_state:
+        del st.session_state["last_count"]
+    if "last_refresh_time" in st.session_state:
+        del st.session_state["last_refresh_time"]
     try:
         fetch_weather.clear()
         fetch_taipei_gov_announcements.clear()
@@ -924,6 +941,7 @@ if "refresh" in st.query_params:
     except Exception:
         pass
     st.rerun()
+
 
 # ----------------- Global Memory Cache Helper Functions -----------------
 
@@ -1761,7 +1779,7 @@ with col_header_right:
     st.markdown(strip_html(f"""
     <div style="text-align: right; font-family: 'Inter', sans-serif; font-size: 0.9rem; color: #555555; line-height: 1.6; margin-top: 8px; margin-bottom: 8px;">
         <b>系統時間</b>：{now_str}<br/>
-        ⏱️ 網頁每 60 秒自動重新載入 ({count})
+        ⏱️ 網頁每 300 秒自動重新載入 (<span id="countdown">{remaining_seconds}</span>)
     </div>
     <div style="text-align: right; margin-top: 6px;">
         <a href="?refresh=1" target="_self" class="refresh-btn">
@@ -1769,6 +1787,30 @@ with col_header_right:
         </a>
     </div>
     """), unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <script>
+        (function() {{
+            let timeLeft = {remaining_seconds};
+            const countdownEl = document.getElementById('countdown');
+            if (countdownEl) {{
+                if (window.countdownIntervalId) {{
+                    clearInterval(window.countdownIntervalId);
+                }}
+                window.countdownIntervalId = setInterval(() => {{
+                    timeLeft--;
+                    if (timeLeft <= 0) {{
+                        clearInterval(window.countdownIntervalId);
+                        countdownEl.textContent = '0';
+                    }} else {{
+                        countdownEl.textContent = timeLeft;
+                    }}
+                }}, 1000);
+            }}
+        }})();
+    </script>
+    """, unsafe_allow_html=True)
+
 
 st.markdown("---")
 
