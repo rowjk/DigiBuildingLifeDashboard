@@ -11,6 +11,16 @@ from streamlit_autorefresh import st_autorefresh
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from database import get_session, Announcement, Restaurant, AdminUser, hash_password
+import base64
+
+# Base64 encode BackToTop.png for floating button
+back_to_top_base64 = ""
+try:
+    if os.path.exists("BackToTop.png"):
+        with open("BackToTop.png", "rb") as img_file:
+            back_to_top_base64 = base64.b64encode(img_file.read()).decode("utf-8")
+except Exception:
+    pass
 
 def strip_html(html_str):
     return "".join(line.strip() for line in html_str.strip().split("\n"))
@@ -24,6 +34,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# Top Anchor for Back to Top Button
+st.markdown("<div id='linkto_top'></div>", unsafe_allow_html=True)
 
 # ----------------- CSS Custom Styling -----------------
 st.markdown("""
@@ -310,6 +323,24 @@ st.markdown("""
     }
     .font-bold {
         font-weight: bold !important;
+    }
+
+    /* 回到最上方按鈕 */
+    .back-to-top-btn img {
+        width: 50px;
+        height: 50px;
+        cursor: pointer;
+        border: 2px solid #111111;
+        background-color: #F7F4EF;
+        padding: 5px;
+        transition: all 0.1s ease;
+        box-shadow: 2px 2px 0px #111111;
+    }
+    .back-to-top-btn img:hover {
+        transform: scale(1.1);
+        background-color: #111111;
+        border-color: #111111;
+        filter: invert(1) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -674,15 +705,26 @@ if has_urgent_announcement:
 # Header Section
 col_header_left, col_header_right = st.columns([3, 1])
 with col_header_left:
-    st.markdown("<h1 style='margin:0;'>🏢 統一數位大樓生活資訊平台<span class='title-subtitle'>(LIFE DASHBOARD)</span></h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='margin:0;'>統一數位大樓生活資訊平台<span class='title-subtitle'>(LIFE DASHBOARD)</span></h1>", unsafe_allow_html=True)
 with col_header_right:
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     st.markdown(strip_html(f"""
-    <div style="text-align: right; font-family: 'Inter', sans-serif; font-size: 0.9rem; color: #555555; line-height: 1.6; margin-top: 8px;">
+    <div style="text-align: right; font-family: 'Inter', sans-serif; font-size: 0.9rem; color: #555555; line-height: 1.6; margin-top: 8px; margin-bottom: 8px;">
         <b>系統時間</b>：{now_str}<br/>
         ⏱️ 網頁每 60 秒自動重新載入 ({count})
     </div>
     """), unsafe_allow_html=True)
+    btn_cols = st.columns([2, 1.2])
+    with btn_cols[1]:
+        if st.button("資料更新", key="btn_refresh"):
+            try:
+                fetch_weather.clear()
+                fetch_taipei_gov_announcements.clear()
+                fetch_youbike_data.clear()
+                fetch_bus_arrivals.clear()
+            except Exception:
+                pass
+            st.rerun()
 
 st.markdown("---")
 
@@ -1024,3 +1066,13 @@ with st.sidebar:
 
 # Close session
 db.close()
+
+# Back to Top floating button
+if back_to_top_base64:
+    st.markdown(strip_html(f"""
+    <div style="position: fixed; bottom: 30px; right: 30px; z-index: 99999;">
+        <a href="#linkto_top" target="_self" class="back-to-top-btn">
+            <img src="data:image/png;base64,{back_to_top_base64}" alt="Back to Top" />
+        </a>
+    </div>
+    """), unsafe_allow_html=True)
