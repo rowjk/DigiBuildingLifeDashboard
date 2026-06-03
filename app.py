@@ -883,7 +883,7 @@ st.markdown(f"""
         margin-bottom: 0px !important;
     }}
     .element-container:has(div[data-testid="stExpander"]) {{
-        margin-bottom: -8px !important;
+        margin-bottom: -12px !important;
     }}
     /* 展開前的 Header (Summary) */
     .streamlit-expanderHeader, [data-testid="stExpander"] summary {{

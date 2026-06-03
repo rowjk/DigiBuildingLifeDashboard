@@ -173,9 +173,9 @@
    * 修正了 Mock 公告列表的建立日期與 Mock 路況的時間種子。
 4. **頁尾更新日期（Footer）時區對齊**：
    * 將頁尾版本更新資訊中的 `datetime.date.today()` 改為 `datetime.datetime.now(tz_utc8).strftime("%Y-%m-%d")`，確保在午夜時分，台北的更新日期與系統的換日線完全一致，不因伺服器 UTC 時差而延遲 8 小時更新。
-5. **摺疊面板 (Expander) 卡片間距優化（對齊路況卡片）**：
-   * 為了使「美食推薦」摺疊面板的卡片間距與「周邊道路車流速限」卡片完全對齊，我們將 `[data-testid="stExpander"]` 的 `margin-bottom` 設為 `0px`，並將其包裝容器 `.element-container` 的 `margin-bottom` 設為 `-8px !important`。
-   * 此調整能完美抵消 Streamlit 預設的區塊間隙，讓美食卡片之間的間距精確縮小至與路況 HTML 卡片相同的 **`8px`**，介面更加整齊劃一。
+5. **摺疊面板 (Expander) 卡片間距再縮減 50%**：
+   * 為了進一步提升緊湊感，我們將美食推薦等摺疊面板卡片的包裝容器 `.element-container` 的 `margin-bottom` 從 `-8px !important` 調整為 **`-12px !important`**。
+   * 此微調能將摺疊面板卡片與卡片之間的垂直空行間距從 `8px` 再度縮小 50%，達到極致緊實的 **`4px`** 間距，使視覺呈現更為緊湊，大幅提升資訊密度。
 
 ---
 
