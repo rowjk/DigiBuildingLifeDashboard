@@ -2368,8 +2368,8 @@ st.markdown("---")
 
 # Row 4: 周邊地圖 Map Section (Full Width)
 st.subheader("＃ 周邊地圖")
-# Embedded Google Maps iframe linked with user_lat and user_lng from localization settings
-iframe_src = f"https://maps.google.com/maps?q={st.session_state['user_lat']},{st.session_state['user_lng']}&t=&z=16&ie=UTF8&iwloc=&output=embed"
+# Embedded Google Maps iframe linked with user_lat and user_lng from localization settings, featuring live traffic overlay (layer=t)
+iframe_src = f"https://maps.google.com/maps?q={st.session_state['user_lat']},{st.session_state['user_lng']}&layer=t&z=16&ie=UTF8&iwloc=&output=embed"
 st.components.v1.html(
     f'<iframe width="100%" height="450" frameborder="0" style="border:0;" src="{iframe_src}" allowfullscreen></iframe>',
     height=460
