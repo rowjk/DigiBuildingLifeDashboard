@@ -297,6 +297,20 @@ st.markdown("""
     ::-webkit-scrollbar-thumb:hover {
         background: #555555 !important;
     }
+
+    /* 顏色與字體特規樣式 */
+    .text-blue {
+        color: #0000AA !important;
+    }
+    .text-green {
+        color: #00AA00 !important;
+    }
+    .text-red {
+        color: #CC0000 !important;
+    }
+    .font-bold {
+        font-weight: bold !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -719,19 +733,19 @@ if youbike_list:
         with cols_yb[idx]:
             sbi_val = int(yb['sbi']) if yb['sbi'] is not None else 0
             bemp_val = int(yb['bemp']) if yb['bemp'] is not None else 0
-            sbi_color = "#CC0000" if sbi_val <= 2 else "#0000AA"
-            bemp_color = "#CC0000" if bemp_val <= 2 else "#00AA00"
+            sbi_color_class = "text-red" if sbi_val <= 2 else "text-blue"
+            bemp_color_class = "text-red" if bemp_val <= 2 else "text-green"
             st.markdown(strip_html(f"""
             <div class="metric-card">
                 <div style="font-weight: bold; font-size: 1rem; color: #111111; font-family: 'Fraunces', serif; border-bottom: 1px dashed #111111; padding-bottom: 5px; margin-bottom: 8px;">{yb['sna']}</div>
                 <div style="display: flex; justify-content: space-between; margin-top: 10px;">
                     <div>
                         <span class="metric-label">可借車</span><br/>
-                        <span class="metric-value" style="color: {sbi_color} !important;">{yb['sbi']}</span>
+                        <span class="metric-value {sbi_color_class}">{yb['sbi']}</span>
                     </div>
                     <div>
                         <span class="metric-label">可還車</span><br/>
-                        <span class="metric-value" style="color: {bemp_color} !important;">{yb['bemp']}</span>
+                        <span class="metric-value {bemp_color_class}">{yb['bemp']}</span>
                     </div>
                 </div>
                 <div style="font-size: 0.75rem; color: #555555; margin-top: 8px;">更新：{yb['update_time']}</div>
@@ -745,20 +759,19 @@ st.subheader("🚌 大台北公車即時到站動態")
 if bus_list:
     bus_rows_html = []
     for bus in bus_list:
-        # Determine base color by direction
-        row_color = "#0000AA" if bus['go_back'] == "去程" else "#00AA00"
+        # Determine base color class by direction
+        row_color_class = "text-blue" if bus['go_back'] == "去程" else "text-green"
         
         # Check if estimate time is <= 2 minutes (120 seconds) or "即將到站"
         is_near = (0 <= bus['raw_time'] <= 120) or (bus['desc'] == "即將到站")
-        time_color = "#CC0000" if is_near else row_color
-        time_style = f"color: {time_color} !important; font-weight: bold;" if is_near else f"color: {time_color} !important;"
+        time_color_class = "text-red font-bold" if is_near else row_color_class
         
         row_html = strip_html(f"""
         <tr>
-            <td style="font-weight: bold; color: {row_color} !important;">{bus['route']}</td>
-            <td style="color: {row_color} !important;">{bus['stop']}</td>
-            <td style="color: {row_color} !important;">{bus['go_back']}</td>
-            <td style="{time_style}">{bus['desc']}</td>
+            <td class="font-bold {row_color_class}">{bus['route']}</td>
+            <td class="{row_color_class}">{bus['stop']}</td>
+            <td class="{row_color_class}">{bus['go_back']}</td>
+            <td class="{time_color_class}">{bus['desc']}</td>
         </tr>
         """)
         bus_rows_html.append(row_html)
