@@ -115,7 +115,7 @@ def fetch_google_place_details(restaurant_name, lat, lng):
                 "X-Goog-FieldMask": (
                     "places.id,places.displayName,places.rating,"
                     "places.reviews,places.currentOpeningHours,"
-                    "places.regularOpeningHours"
+                    "places.regularOpeningHours,places.formattedAddress"
                 )
             }
             body = {
@@ -161,6 +161,7 @@ def fetch_google_place_details(restaurant_name, lat, lng):
                             "reviews": reviews,
                             "open_now": open_now,
                             "weekday_text": weekday_text,
+                            "address": p.get("formattedAddress", "台北市區"),
                             "is_mock": False
                         }
         except Exception:
@@ -189,11 +190,12 @@ def fetch_google_place_details(restaurant_name, lat, lng):
         "reviews": mock_reviews,
         "open_now": open_now,
         "weekday_text": weekday_text,
+        "address": "台北市內湖區石潭路155號 (鄰近定位點)",
         "is_mock": True
     }
 
 class TempRestaurant:
-    def __init__(self, name, category, google_rating, review_count, price_level, latitude, longitude):
+    def __init__(self, name, category, google_rating, review_count, price_level, latitude, longitude, address=""):
         self.name = name
         self.category = category
         self.google_rating = google_rating
@@ -201,6 +203,7 @@ class TempRestaurant:
         self.price_level = price_level
         self.latitude = latitude
         self.longitude = longitude
+        self.address = address
         self.distance_meter = 999
         self.calculated_distance = 999
 
@@ -229,7 +232,7 @@ def fetch_dynamic_restaurants(lat, lng, category="全部"):
             "X-Goog-FieldMask": (
                 "places.id,places.displayName,places.rating,"
                 "places.userRatingCount,places.priceLevel,"
-                "places.location"
+                "places.location,places.formattedAddress"
             )
         }
         body = {
@@ -256,12 +259,23 @@ def fetch_dynamic_restaurants(lat, lng, category="全部"):
                     name = p.get("displayName", {}).get("text", "")
                     rating = p.get("rating", 4.0)
                     review_count = p.get("userRatingCount", 100)
-                    price_level = p.get("priceLevel", 1)
-                    # Convert price level
-                    try:
-                        pl = int(price_level) if str(price_level).isdigit() else 1
-                    except Exception:
-                        pl = 1
+                    price_level_raw = p.get("priceLevel")
+                    address = p.get("formattedAddress", "台北市區")
+                    
+                    pl = 1
+                    if price_level_raw:
+                        price_level_str = str(price_level_raw)
+                        if price_level_str.isdigit():
+                            pl = int(price_level_str)
+                        elif "INEXPENSIVE" in price_level_str:
+                            pl = 1
+                        elif "MODERATE" in price_level_str:
+                            pl = 2
+                        elif "EXPENSIVE" in price_level_str:
+                            pl = 3
+                        elif "VERY_EXPENSIVE" in price_level_str:
+                            pl = 4
+                            
                     loc = p.get("location", {})
                     p_lat = loc.get("latitude")
                     p_lng = loc.get("longitude")
@@ -274,7 +288,8 @@ def fetch_dynamic_restaurants(lat, lng, category="全部"):
                             review_count=review_count,
                             price_level=pl,
                             latitude=p_lat,
-                            longitude=p_lng
+                            longitude=p_lng,
+                            address=address
                         ))
                 return results
     except Exception:
@@ -2241,7 +2256,7 @@ if not has_places_key:
 
 # Category Filters
 category_options = ["全部", "便當", "麵食", "日式", "韓式", "美式", "健康餐"]
-sort_options = ["評分高低 (Google Rating)", "距離近遠 (Distance)"]
+sort_options = ["距離近遠 (Distance)", "評分高低 (Google Rating)"]
 
 col_filter1, col_filter2 = st.columns([1, 1])
 with col_filter1:
@@ -2277,7 +2292,28 @@ results = all_restaurants[:10]
 
 if results:
     for rank, r in enumerate(results, 1):
-        price_str = "¥" * r.price_level
+        # Robust price level fallback check
+        pl_val = 1
+        if r.price_level is not None:
+            try:
+                if isinstance(r.price_level, str):
+                    if "INEXPENSIVE" in r.price_level:
+                        pl_val = 1
+                    elif "MODERATE" in r.price_level:
+                        pl_val = 2
+                    elif "EXPENSIVE" in r.price_level:
+                        pl_val = 3
+                    elif "VERY_EXPENSIVE" in r.price_level:
+                        pl_val = 4
+                    elif r.price_level.isdigit():
+                        pl_val = int(r.price_level)
+                else:
+                    pl_val = int(r.price_level)
+            except Exception:
+                pl_val = 1
+        pl_val = max(1, min(pl_val, 4))
+        price_str = "¥" * pl_val
+
         expander_label = f"{'🥇' if rank==1 else '🥈' if rank==2 else '🥉' if rank==3 else f'#{rank}'}  {r.name}  |  ⭐ {r.google_rating}  |  {r.category}  |  {price_str}  |  📍 {r.calculated_distance} 公尺"
         with st.expander(expander_label, expanded=False):
             # Fetch Google Places details
@@ -2296,6 +2332,7 @@ if results:
                 st.markdown(f"**餐廳類型**: {r.category}  |  **價位**: {price_str}")
                 st.markdown(f"**評論數**: {r.review_count} 則")
                 st.markdown(f"**距離中心點**: 約 {r.calculated_distance} 公尺")
+                st.markdown(f"**餐廳地址**: {place_details.get('address', '無提供地址')}")
                 if place_details.get("is_mock"):
                     st.caption("⚠️ 以下為模擬資料（需設定 Google Places API 金鑰以取得即時資訊）")
                 maps_url = f"https://www.google.com/maps/search/{r.name.replace(' ', '+')}+台北"
