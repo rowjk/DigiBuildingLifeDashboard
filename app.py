@@ -63,21 +63,26 @@ def google_geocode_or_search(query):
             return v
 
     if api_key:
-        url = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
-        params = {
-            "input": query,
-            "inputtype": "textquery",
-            "fields": "geometry",
-            "key": api_key
+        url = "https://places.googleapis.com/v1/places:searchText"
+        headers = {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": api_key,
+            "X-Goog-FieldMask": "places.location"
+        }
+        data = {
+            "textQuery": query,
+            "languageCode": "zh-TW"
         }
         try:
-            with httpx.Client(verify=False, timeout=3.0) as client:
-                r = client.get(url, params=params)
+            with httpx.Client(verify=False, timeout=4.0) as client:
+                r = client.post(url, headers=headers, json=data)
                 if r.status_code == 200:
-                    data = r.json()
-                    if data.get("candidates"):
-                        loc = data["candidates"][0]["geometry"]["location"]
-                        return float(loc["lat"]), float(loc["lng"])
+                    resp_data = r.json()
+                    places = resp_data.get("places", [])
+                    if places:
+                        loc = places[0].get("location", {})
+                        if "latitude" in loc and "longitude" in loc:
+                            return float(loc["latitude"]), float(loc["longitude"])
         except Exception:
             pass
 
@@ -184,6 +189,95 @@ def fetch_google_place_details(restaurant_name, lat, lng):
         "weekday_text": weekday_text,
         "is_mock": True
     }
+
+class TempRestaurant:
+    def __init__(self, name, category, google_rating, review_count, price_level, latitude, longitude):
+        self.name = name
+        self.category = category
+        self.google_rating = google_rating
+        self.review_count = review_count
+        self.price_level = price_level
+        self.latitude = latitude
+        self.longitude = longitude
+        self.distance_meter = 999
+        self.calculated_distance = 999
+
+@st.cache_data(ttl=1800)
+def fetch_dynamic_restaurants(lat, lng, category="全部"):
+    """Dynamically fetch local restaurants using Google Places searchText endpoint."""
+    api_key = os.getenv("GOOGLE_PLACES_API_KEY")
+    if not api_key:
+        return []
+        
+    query_map = {
+        "全部": "餐廳 美食",
+        "便當": "便當 排骨飯",
+        "麵食": "麵 牛肉麵 拉麵",
+        "日式": "日式料理 壽司 拉麵 丼飯",
+        "韓式": "韓式料理 韓國豆腐鍋 烤肉",
+        "美式": "美式餐廳 漢堡 薯條 早午餐",
+        "健康餐": "健康餐盒 沙拉 輕食"
+    }
+    query = query_map.get(category, "餐廳")
+    
+    try:
+        headers = {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": api_key,
+            "X-Goog-FieldMask": (
+                "places.id,places.displayName,places.rating,"
+                "places.userRatingCount,places.priceLevel,"
+                "places.location"
+            )
+        }
+        body = {
+            "textQuery": query,
+            "locationBias": {
+                "circle": {
+                    "center": {"latitude": float(lat), "longitude": float(lng)},
+                    "radius": 1500.0
+                }
+            },
+            "languageCode": "zh-TW",
+            "maxResultCount": 20
+        }
+        with httpx.Client(verify=False, timeout=8.0) as client:
+            r = client.post(
+                "https://places.googleapis.com/v1/places:searchText",
+                headers=headers,
+                json=body
+            )
+            if r.status_code == 200:
+                places = r.json().get("places", [])
+                results = []
+                for p in places:
+                    name = p.get("displayName", {}).get("text", "")
+                    rating = p.get("rating", 4.0)
+                    review_count = p.get("userRatingCount", 100)
+                    price_level = p.get("priceLevel", 1)
+                    # Convert price level
+                    try:
+                        pl = int(price_level) if str(price_level).isdigit() else 1
+                    except Exception:
+                        pl = 1
+                    loc = p.get("location", {})
+                    p_lat = loc.get("latitude")
+                    p_lng = loc.get("longitude")
+                    
+                    if p_lat is not None and p_lng is not None:
+                        results.append(TempRestaurant(
+                            name=name,
+                            category=category if category != "全部" else "美食",
+                            google_rating=rating,
+                            review_count=review_count,
+                            price_level=pl,
+                            latitude=p_lat,
+                            longitude=p_lng
+                        ))
+                return results
+    except Exception:
+        pass
+    return []
 
 
 # Load environment variables
@@ -424,6 +518,101 @@ st.markdown(f"""
         line-height: 1.6 !important;
     }}
 
+    /* 天氣 ICON 動態動畫 */
+    @keyframes svg-spin {{
+        0% {{ transform: rotate(0deg); }}
+        100% {{ transform: rotate(360deg); }}
+    }}
+    .svg-spin-class {{
+        transform-origin: 32px 32px;
+        animation: svg-spin 15s linear infinite !important;
+    }}
+
+    @keyframes svg-pulse {{
+        0% {{ transform: scale(1); }}
+        50% {{ transform: scale(1.1); }}
+        100% {{ transform: scale(1); }}
+    }}
+    .svg-pulse-class {{
+        transform-origin: 32px 32px;
+        animation: svg-pulse 4s ease-in-out infinite !important;
+    }}
+
+    @keyframes svg-drift {{
+        0% {{ transform: translate(0px, 0px); }}
+        50% {{ transform: translate(3px, -1px); }}
+        100% {{ transform: translate(0px, 0px); }}
+    }}
+    .svg-cloud-back {{
+        transform-origin: 32px 32px;
+        animation: svg-drift 5s ease-in-out infinite !important;
+    }}
+    .svg-cloud-front {{
+        transform-origin: 32px 32px;
+        animation: svg-drift 4s ease-in-out infinite alternate !important;
+    }}
+
+    @keyframes svg-rain {{
+        0% {{ transform: translateY(0px); opacity: 0; }}
+        30% {{ opacity: 1; }}
+        80% {{ opacity: 0.8; }}
+        100% {{ transform: translateY(12px); opacity: 0; }}
+    }}
+    .svg-rain-drop1 {{
+        animation: svg-rain 1.5s infinite linear !important;
+    }}
+    .svg-rain-drop2 {{
+        animation: svg-rain 1.5s infinite linear !important;
+        animation-delay: 0.5s !important;
+    }}
+    .svg-rain-drop3 {{
+        animation: svg-rain 1.5s infinite linear !important;
+        animation-delay: 1s !important;
+    }}
+
+    @keyframes svg-lightning {{
+        0%, 85%, 100% {{ opacity: 0; }}
+        88%, 94% {{ opacity: 1; }}
+        91% {{ opacity: 0.2; }}
+    }}
+    .svg-lightning-bolt {{
+        animation: svg-lightning 2s infinite !important;
+    }}
+
+    @keyframes svg-snow {{
+        0% {{ transform: translateY(0px); opacity: 0; }}
+        30% {{ opacity: 1; }}
+        100% {{ transform: translateY(12px); opacity: 0; }}
+    }}
+    .svg-snow-flake1 {{
+        animation: svg-snow 2s infinite linear !important;
+    }}
+    .svg-snow-flake2 {{
+        animation: svg-snow 2s infinite linear !important;
+        animation-delay: 0.7s !important;
+    }}
+    .svg-snow-flake3 {{
+        animation: svg-snow 2s infinite linear !important;
+        animation-delay: 1.4s !important;
+    }}
+
+    @keyframes svg-fog {{
+        0% {{ transform: translateX(-4px); opacity: 0.3; }}
+        50% {{ transform: translateX(4px); opacity: 0.8; }}
+        100% {{ transform: translateX(-4px); opacity: 0.3; }}
+    }}
+    .svg-fog-line1 {{
+        animation: svg-fog 4s ease-in-out infinite !important;
+    }}
+    .svg-fog-line2 {{
+        animation: svg-fog 4s ease-in-out infinite !important;
+        animation-delay: 1s !important;
+    }}
+    .svg-fog-line3 {{
+        animation: svg-fog 4s ease-in-out infinite !important;
+        animation-delay: 2s !important;
+    }}
+
     /* 調整警告橫幅 (st.warning / st.error) 符合報紙社論插頁風格 */
     .stAlert {{
         border-radius: var(--radius) !important;
@@ -500,8 +689,8 @@ st.markdown(f"""
         margin-bottom: 12px !important;
         border: var(--border-style) !important;
         border-radius: var(--radius) !important;
-        background-color: var(--card-bg) !important;
-        box-shadow: var(--box-shadow) !important;
+        background-color: #FFFFFF !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.10) !important;
         font-family: var(--font-body) !important;
         font-size: 0.95rem !important;
         line-height: 1.6 !important;
@@ -515,7 +704,7 @@ st.markdown(f"""
         border: 2px solid var(--alert-border) !important;
     }}
     .announcement-card.normal {{
-        background-color: var(--card-bg) !important;
+        background-color: #FFFFFF !important;
         color: var(--text-color) !important;
     }}
     .announcement-header {{
@@ -664,22 +853,29 @@ st.markdown(f"""
         border-radius: var(--radius) !important;
     }}
     
-    /* Streamlit 摺疊面板：統一白色底色，清楚區隔背景 */
-    .streamlit-expanderHeader {{
+    /* Streamlit 摺疊面板：整個容器有白色底色與外框 */
+    [data-testid="stExpander"] {{
         background-color: #FFFFFF !important;
-        color: var(--text-color) !important;
         border: var(--border-style) !important;
         border-radius: var(--radius) !important;
-        font-family: var(--font-header) !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+        margin-bottom: 12px !important;
     }}
-    .streamlit-expanderContent {{
+    /* 展開前的 Header (Summary) */
+    .streamlit-expanderHeader, [data-testid="stExpander"] summary {{
         background-color: #FFFFFF !important;
         color: var(--text-color) !important;
-        border: var(--border-style) !important;
-        border-top: none !important;
+        font-family: var(--font-header) !important;
+        border: none !important;
+        border-radius: var(--radius) !important;
+    }}
+    /* 展開後的 Content */
+    .streamlit-expanderContent, [data-testid="stExpander"] > div[role="region"] {{
+        background-color: #FFFFFF !important;
+        color: var(--text-color) !important;
+        border: none !important;
+        border-top: 1px solid var(--border-color) !important;
         border-radius: 0 0 var(--radius) var(--radius) !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -704,61 +900,222 @@ if "refresh" in st.query_params:
 
 # ----------------- Global Memory Cache Helper Functions -----------------
 
+# Taiwan CWA weather dataset ID mapping
+CITY_DATASETS = {
+    "宜蘭縣": "F-D0047-001",
+    "桃園市": "F-D0047-005",
+    "新竹縣": "F-D0047-009",
+    "苗栗縣": "F-D0047-013",
+    "彰化縣": "F-D0047-017",
+    "南投縣": "F-D0047-021",
+    "雲林縣": "F-D0047-025",
+    "嘉義縣": "F-D0047-029",
+    "屏東縣": "F-D0047-033",
+    "台東縣": "F-D0047-037",
+    "花蓮縣": "F-D0047-041",
+    "澎湖縣": "F-D0047-045",
+    "基隆市": "F-D0047-049",
+    "新竹市": "F-D0047-053",
+    "嘉義市": "F-D0047-057",
+    "台北市": "F-D0047-061",
+    "高雄市": "F-D0047-065",
+    "新北市": "F-D0047-069",
+    "台中市": "F-D0047-073",
+    "台南市": "F-D0047-077",
+    "連江縣": "F-D0047-081",
+    "金門縣": "F-D0047-085"
+}
+
+@st.cache_data(ttl=86400)
 def get_district_from_coords(lat, lng, loc_name=""):
-    if "南港" in loc_name:
-        return "南港區"
-    if "101" in loc_name or "信義" in loc_name:
-        return "信義區"
-    if "港墘" in loc_name or "內湖" in loc_name or "石潭" in loc_name or "統一" in loc_name:
-        return "內湖區"
-    if "台北車站" in loc_name or "中正" in loc_name:
-        return "中正區"
-        
-    districts = {
-        "內湖區": (25.0688, 121.5909),
-        "南港區": (25.0433, 121.6186),
-        "信義區": (25.0302, 121.5678),
-        "中正區": (25.0421, 121.5198),
-        "大安區": (25.0264, 121.5434),
-        "中山區": (25.0685, 121.5433),
-        "松山區": (25.0562, 121.5644),
-        "萬華區": (25.0268, 121.4962),
-        "士林區": (25.0922, 121.5245),
-        "北投區": (25.1321, 121.5011),
-        "大同區": (25.0645, 121.5133),
-        "文山區": (24.9881, 121.5701)
-    }
+    city_name = ""
+    district_name = ""
     
-    min_dist = 999999.0
-    guessed_district = "內湖區"
-    for name, coords in districts.items():
-        d = haversine_distance(lat, lng, coords[0], coords[1])
-        if d < min_dist:
-            min_dist = d
-            guessed_district = name
-    return guessed_district
+    # Predefined landmark mappings to bypass network lookups
+    if "南港" in loc_name:
+        city_name, district_name = "台北市", "南港區"
+    elif "101" in loc_name or "信義" in loc_name:
+        city_name, district_name = "台北市", "信義區"
+    elif "港墘" in loc_name or "內湖" in loc_name or "石潭" in loc_name or "統一" in loc_name:
+        city_name, district_name = "台北市", "內湖區"
+    elif "台北車站" in loc_name or "中正" in loc_name:
+        city_name, district_name = "台北市", "中正區"
+
+    if not city_name or not district_name:
+        # Try Google Geocoding API if key is present
+        api_key = os.getenv("GOOGLE_PLACES_API_KEY")
+        if api_key:
+            url = "https://maps.googleapis.com/maps/api/geocode/json"
+            params = {
+                "latlng": f"{lat},{lng}",
+                "key": api_key,
+                "language": "zh-TW"
+            }
+            try:
+                with httpx.Client(verify=False, timeout=3.0) as client:
+                    r = client.get(url, params=params)
+                    if r.status_code == 200:
+                        results = r.json().get("results", [])
+                        if results:
+                            components = results[0].get("address_components", [])
+                            for c in components:
+                                types = c.get("types", [])
+                                if "administrative_area_level_1" in types:
+                                    city_name = c.get("long_name", "")
+                                elif "administrative_area_level_2" in types and not city_name:
+                                    city_name = c.get("long_name", "")
+                                elif "locality" in types:
+                                    district_name = c.get("long_name", "")
+                                elif "sublocality_level_1" in types:
+                                    district_name = c.get("long_name", "")
+            except Exception:
+                pass
+
+        if not city_name or not district_name:
+            # Fallback to Nominatim reverse geocoding
+            try:
+                url = "https://nominatim.openstreetmap.org/reverse"
+                headers = {"User-Agent": "LifeDashboard/1.2"}
+                params = {
+                    "lat": lat,
+                    "lon": lng,
+                    "format": "json",
+                    "accept-language": "zh-TW"
+                }
+                with httpx.Client(verify=False, timeout=3.0) as client:
+                    r = client.get(url, headers=headers, params=params)
+                    if r.status_code == 200:
+                        data = r.json()
+                        address = data.get("address", {})
+                        city_name = address.get("city") or address.get("county") or address.get("town") or ""
+                        district_name = address.get("district") or address.get("town") or address.get("suburb") or address.get("village") or ""
+            except Exception:
+                pass
+
+    # Guess nearest Taiwan district/city as final fallback if API lookups fail
+    if not city_name or not district_name:
+        districts = {
+            # 台北市
+            ("台北市", "內湖區"): (25.0688, 121.5909),
+            ("台北市", "南港區"): (25.0433, 121.6186),
+            ("台北市", "信義區"): (25.0302, 121.5678),
+            ("台北市", "中正區"): (25.0421, 121.5198),
+            ("台北市", "大安區"): (25.0264, 121.5434),
+            ("台北市", "中山區"): (25.0685, 121.5433),
+            ("台北市", "松山區"): (25.0562, 121.5644),
+            ("台北市", "萬華區"): (25.0268, 121.4962),
+            ("台北市", "士林區"): (25.0922, 121.5245),
+            ("台北市", "北投區"): (25.1321, 121.5011),
+            ("台北市", "大同區"): (25.0645, 121.5133),
+            ("台北市", "文山區"): (24.9881, 121.5701),
+            # 新北市
+            ("新北市", "板橋區"): (25.0120, 121.4657),
+            ("新北市", "新店區"): (24.9782, 121.5395),
+            ("新北市", "三重區"): (25.0628, 121.4990),
+            ("新北市", "淡水區"): (25.1685, 121.4446),
+            # 基隆市
+            ("基隆市", "仁愛區"): (25.1275, 121.7391),
+            # 桃園市
+            ("桃園市", "桃園區"): (24.9937, 121.3010),
+            ("桃園市", "中壢區"): (24.9654, 121.2246),
+            # 新竹市
+            ("新竹市", "東區"): (24.8016, 120.9716),
+            # 新竹縣
+            ("新竹縣", "竹北市"): (24.8383, 121.0177),
+            # 苗栗縣
+            ("苗栗縣", "苗栗市"): (24.5602, 120.8214),
+            # 台中市
+            ("台中市", "中區"): (24.1436, 120.6837),
+            ("台中市", "西屯區"): (24.1801, 120.6201),
+            ("台中市", "北屯區"): (24.1824, 120.6974),
+            # 彰化縣
+            ("彰化縣", "彰化市"): (24.0517, 120.5161),
+            # 南投縣
+            ("南投縣", "南投市"): (23.9181, 120.6861),
+            # 雲林縣
+            ("雲林縣", "斗六市"): (23.7092, 120.5431),
+            # 嘉義市
+            ("嘉義市", "東區"): (23.4820, 120.4578),
+            # 嘉義縣
+            ("嘉義縣", "太保市"): (23.4589, 120.2933),
+            # 台南市
+            ("台南市", "中西區"): (22.9922, 120.2013),
+            ("台南市", "東區"): (22.9866, 120.2224),
+            ("台南市", "安平區"): (22.9997, 120.1697),
+            # 高雄市
+            ("高雄市", "新興區"): (22.6273, 120.3014),
+            ("高雄市", "苓雅區"): (22.6219, 120.3288),
+            ("高雄市", "三民區"): (22.6437, 120.3276),
+            ("高雄市", "左營區"): (22.6869, 120.3019),
+            # 屏東縣
+            ("屏東縣", "屏東市"): (22.6672, 120.4856),
+            # 宜蘭縣
+            ("宜蘭縣", "宜蘭市"): (24.7570, 121.7530),
+            # 花蓮縣
+            ("花蓮縣", "花蓮市"): (23.9769, 121.6044),
+            # 台東縣
+            ("台東縣", "台東市"): (22.7560, 121.1500),
+            # 澎湖縣
+            ("澎湖縣", "馬公市"): (23.5711, 119.5793),
+            # 金門縣
+            ("金門縣", "金城鎮"): (24.4482, 118.3223),
+            # 連江縣
+            ("連江縣", "南竿鄉"): (26.1507, 119.9272),
+        }
+        min_dist = 999999.0
+        guessed_city = "台北市"
+        guessed_district = "內湖區"
+        for (c_name, d_name), coords in districts.items():
+            d = haversine_distance(lat, lng, coords[0], coords[1])
+            if d < min_dist:
+                min_dist = d
+                guessed_city = c_name
+                guessed_district = d_name
+        city_name = guessed_city
+        district_name = guessed_district
+
+    # Normalize city names
+    city_name = city_name.replace("臺", "台") if city_name else "台北市"
+    district_name = district_name.replace("臺", "台") if district_name else "內湖區"
+    return city_name, district_name
 
 # 1. Weather Data (TTL = 30 mins)
 @st.cache_data(ttl=1800)
-def fetch_weather(district_name):
+def fetch_weather(city_name, district_name):
     api_key = os.getenv("CWA_API_KEY")
     if not api_key:
         raise ValueError("缺少中央氣象署 API 金鑰 (CWA_API_KEY)")
         
-    url = f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-D0047-061"
+    city_normalized = city_name.replace("臺", "台") if city_name else "台北市"
+    dataset_id = CITY_DATASETS.get(city_normalized, "F-D0047-061")
+    
+    url = f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/{dataset_id}"
     params = {
         "Authorization": api_key,
         "locationName": district_name
     }
     
     # We bypass SSL verification if CWA certificate is missing Subject Key Identifier
-    with httpx.Client(verify=False, timeout=3.0) as client:
+    with httpx.Client(verify=False, timeout=4.0) as client:
         r = client.get(url, params=params)
-        if r.status_code != 200:
-            raise RuntimeError(f"CWA API 回傳狀態碼 {r.status_code}")
         
+        # If district is not found or fails, fetch all districts in that city as fallback
+        if r.status_code != 200 or not r.json().get("records", {}).get("Locations", [{}])[0].get("Location"):
+            r = client.get(url, params={"Authorization": api_key})
+            if r.status_code != 200:
+                raise RuntimeError(f"CWA API 回傳狀態碼 {r.status_code}")
+                
         data = r.json()
-        location_data = data["records"]["Locations"][0]["Location"][0]
+        locations = data["records"]["Locations"][0]["Location"]
+        
+        location_data = None
+        for loc in locations:
+            if loc["LocationName"] == district_name:
+                location_data = loc
+                break
+        if not location_data:
+            location_data = locations[0]
+            
         elements = location_data["WeatherElement"]
         
         weather_info = {
@@ -854,6 +1211,51 @@ def fetch_taipei_gov_announcements():
             })
         return parsed_news
 
+# 2.5. Google News Taiwan RSS (TTL = 10 mins)
+def get_mock_google_news():
+    return [
+        {"title": "台積電創新高！市值破紀錄，先進製程訂單持續滿載", "link": "https://news.google.com", "source": "科技日報", "published": "2026-06-03 12:00"},
+        {"title": "台灣梅雨季來臨！氣象署發布大雨特報，多地慎防積水", "link": "https://news.google.com", "source": "氣象新聞", "published": "2026-06-03 11:30"},
+        {"title": "端午連假車潮預估！高公局公布國道疏導措施與塞車路段", "link": "https://news.google.com", "source": "交通觀察", "published": "2026-06-03 10:15"},
+        {"title": "台北國際電腦展盛大開幕！全球科技巨頭齊聚展示AI新應用", "link": "https://news.google.com", "source": "電腦世界", "published": "2026-06-03 09:00"},
+        {"title": "大台北YouBike升級計畫啟動！預計增設百座新站點提升便利性", "link": "https://news.google.com", "source": "都市脈動", "published": "2026-06-03 08:45"}
+    ]
+
+@st.cache_data(ttl=600)
+def fetch_google_news_taiwan():
+    import feedparser
+    import email.utils
+    import datetime
+    rss_url = "https://news.google.com/rss?hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+    feed = feedparser.parse(rss_url)
+    news_items = []
+    if feed.entries:
+        for entry in feed.entries[:35]:
+            # Format published date if possible
+            pub_date = entry.published if hasattr(entry, "published") else ""
+            dt_obj = datetime.datetime.min
+            if pub_date:
+                try:
+                    parsed_time = email.utils.parsedate_to_datetime(pub_date)
+                    local_time = parsed_time.astimezone() # 自動轉成本地時區 (台灣台北 UTC+8)
+                    pub_date = local_time.strftime("%Y-%m-%d %H:%M")
+                    dt_obj = local_time
+                except Exception:
+                    pass
+            news_items.append({
+                "title": entry.title,
+                "link": entry.link,
+                "source": entry.source.get("title", "Google 新聞") if hasattr(entry, "source") else "Google 新聞",
+                "published": pub_date,
+                "dt": dt_obj
+            })
+    if not news_items:
+        raise RuntimeError("新聞 RSS 空白或解析失敗")
+    
+    # 依據發布時間降序排序 (時間越近、越新的顯示在越上面)
+    news_items.sort(key=lambda x: x["dt"], reverse=True)
+    return news_items[:25]
+
 # 3. YouBike 2.0 (TTL = 5 mins)
 @st.cache_data(ttl=300)
 def fetch_youbike_data():
@@ -903,7 +1305,7 @@ def fetch_youbike_data():
     return all_stations
 
 # 4. Bus Static Stop/Route mapping (TTL = 24 hours)
-@st.cache_data(ttl=86400)
+@st.cache_resource(ttl=86400)
 def fetch_bus_static_data():
     stops_url = "https://tcgbusfs.blob.core.windows.net/blobbus/GetStop.gz"
     routes_url = "https://tcgbusfs.blob.core.windows.net/blobbus/GetRoute.gz"
@@ -1011,9 +1413,18 @@ def get_mock_taipei_announcements():
 
 def get_mock_youbike_data():
     return [
-        {"sna": "捷運石潭站 (石潭路)", "sbi": 12, "bemp": 18, "update_time": "暫存資料"},
-        {"sna": "石潭金豐街口 (統一數位大樓)", "sbi": 5, "bemp": 25, "update_time": "暫存資料"},
-        {"sna": "新湖一路口 (民權東路)", "sbi": 8, "bemp": 12, "update_time": "暫存資料"}
+        {"sna": "捷運石潭站 (石潭路)", "sbi": 12, "bemp": 18, "update_time": "暫存資料", "lat": 25.060200, "lng": 121.589100},
+        {"sna": "石潭金豐街口 (統一數位大樓)", "sbi": 5, "bemp": 25, "update_time": "暫存資料", "lat": 25.059727, "lng": 121.589632},
+        {"sna": "新湖一路口 (民權東路)", "sbi": 8, "bemp": 12, "update_time": "暫存資料", "lat": 25.062000, "lng": 121.580000},
+        {"sna": "捷運昆陽站 (1號出口)", "sbi": 15, "bemp": 20, "update_time": "暫存資料", "lat": 25.050227, "lng": 121.593327},
+        {"sna": "捷運昆陽站 (4號出口)", "sbi": 3, "bemp": 27, "update_time": "暫存資料", "lat": 25.050500, "lng": 121.594000},
+        {"sna": "捷運港墘站 (2號出口)", "sbi": 9, "bemp": 11, "update_time": "暫存資料", "lat": 25.079800, "lng": 121.575100},
+        {"sna": "內湖好市多站", "sbi": 14, "bemp": 6, "update_time": "暫存資料", "lat": 25.061700, "lng": 121.579600},
+        {"sna": "台北車站 (東三門)", "sbi": 22, "bemp": 8, "update_time": "暫存資料", "lat": 25.047800, "lng": 121.517000},
+        {"sna": "台北車站 (西一門)", "sbi": 1, "bemp": 29, "update_time": "暫存資料", "lat": 25.047500, "lng": 121.516500},
+        {"sna": "南港車站 (興華路)", "sbi": 11, "bemp": 19, "update_time": "暫存資料", "lat": 25.052187, "lng": 121.606775},
+        {"sna": "捷運台北101/世貿站", "sbi": 7, "bemp": 23, "update_time": "暫存資料", "lat": 25.033976, "lng": 121.564539},
+        {"sna": "捷運市政府站 (3號出口)", "sbi": 18, "bemp": 12, "update_time": "暫存資料", "lat": 25.040000, "lng": 121.565000}
     ]
 
 def get_mock_bus_arrivals():
@@ -1051,7 +1462,8 @@ current_lng = st.session_state["user_lng"]
 current_loc_name = st.session_state["loc_name"]
 
 # Geopositioning helpers
-district_name = get_district_from_coords(current_lat, current_lng, current_loc_name)
+city_name, district_name = get_district_from_coords(current_lat, current_lng, current_loc_name)
+display_district = f"{city_name}{district_name}"
 
 # Cache Warnings Helper
 warning_messages = []
@@ -1059,18 +1471,18 @@ warning_messages = []
 # Fetch All Data Streams with Defensive Fallbacks
 # 1. Weather
 try:
-    weather = fetch_weather(district_name)
+    weather = fetch_weather(city_name, district_name)
 except Exception as e:
     weather = get_mock_weather()
     warning_messages.append(f"天氣資料更新失敗，目前顯示暫存資訊 (錯誤訊息：{e})")
 
-# 2. Taipei Gov Announcements
-taipei_news = []
+# 2. Google News Taiwan
+google_news = []
 try:
-    taipei_news = fetch_taipei_gov_announcements()
+    google_news = fetch_google_news_taiwan()
 except Exception as e:
-    taipei_news = get_mock_taipei_announcements()
-    warning_messages.append(f"北市府API無資料或無法連線(錯誤訊息：{e})")
+    google_news = get_mock_google_news()
+    warning_messages.append(f"新聞頭條更新失敗，目前顯示暫存資訊 (錯誤訊息：{e})")
 
 # 3. YouBike
 try:
@@ -1079,16 +1491,22 @@ try:
     for yb in all_youbike_stations:
         if yb["lat"] is not None and yb["lng"] is not None:
             dist = haversine_distance(current_lat, current_lng, yb["lat"], yb["lng"])
-            yb["distance_meter"] = int(dist)
-            youbike_list.append(yb)
+            yb_copy = dict(yb)
+            yb_copy["distance_meter"] = int(dist)
+            youbike_list.append(yb_copy)
             
     # Sort by distance
     youbike_list.sort(key=lambda x: x["distance_meter"])
     youbike_list = youbike_list[:3]
 except Exception as e:
-    youbike_list = get_mock_youbike_data()
-    for idx, item in enumerate(youbike_list):
-        item["distance_meter"] = (idx + 1) * 120
+    mock_stations = get_mock_youbike_data()
+    youbike_list = []
+    for yb in mock_stations:
+        dist = haversine_distance(current_lat, current_lng, yb["lat"], yb["lng"])
+        yb["distance_meter"] = int(dist)
+        youbike_list.append(yb)
+    youbike_list.sort(key=lambda x: x["distance_meter"])
+    youbike_list = youbike_list[:3]
     warning_messages.append(f"YouBike 即時資料更新失敗，目前顯示暫存資訊 (錯誤訊息：{e})")
 
 # 4. Bus Dynamics
@@ -1100,11 +1518,23 @@ try:
     seen_stop_names = set()
     for s_id, s_info in stops_dict.items():
         if s_info["lat"] is not None and s_info["lng"] is not None:
-            dist = haversine_distance(current_lat, current_lng, s_info["lat"], s_info["lng"])
-            name = s_info["nameZh"]
-            if name not in seen_stop_names:
-                unique_stops_with_distance.append((name, dist))
-                seen_stop_names.add(name)
+            # 粗篩：只對 1.5 公里內的站牌計算精確距離，省去上萬次三角函數計算
+            if abs(s_info["lat"] - current_lat) < 0.015 and abs(s_info["lng"] - current_lng) < 0.015:
+                dist = haversine_distance(current_lat, current_lng, s_info["lat"], s_info["lng"])
+                name = s_info["nameZh"]
+                if name not in seen_stop_names:
+                    unique_stops_with_distance.append((name, dist))
+                    seen_stop_names.add(name)
+                    
+    # 防禦性退回：若極端定位導致粗篩為空，才進行全量計算
+    if not unique_stops_with_distance:
+        for s_id, s_info in stops_dict.items():
+            if s_info["lat"] is not None and s_info["lng"] is not None:
+                dist = haversine_distance(current_lat, current_lng, s_info["lat"], s_info["lng"])
+                name = s_info["nameZh"]
+                if name not in seen_stop_names:
+                    unique_stops_with_distance.append((name, dist))
+                    seen_stop_names.add(name)
                 
     unique_stops_with_distance.sort(key=lambda x: x[1])
     closest_stop_names = [x[0] for x in unique_stops_with_distance[:5]]
@@ -1133,23 +1563,10 @@ except Exception as e:
 
 # 5. Local Announcements from SQLite
 db = get_session()
-local_news = db.query(Announcement).order_by(Announcement.created_at.desc()).all()
-all_news = []
+all_news = google_news
 
-# Merge Taipei Gov news and Local SQLite news
-for item in taipei_news:
-    all_news.append(item)
-for item in local_news:
-    all_news.append({
-        "title": item.title,
-        "content": item.content,
-        "is_urgent": item.is_urgent,
-        "source": item.source,
-        "created_at": item.created_at.strftime("%Y-%m-%d %H:%M")
-    })
-
-# Check if there is any urgent announcement
-has_urgent_announcement = any(news["is_urgent"] for news in all_news)
+# Check if there is any urgent announcement (Google News keywords match)
+has_urgent_announcement = any(any(kw in news["title"] for kw in ["停班", "停課", "颱風", "地震", "災害"]) for news in all_news)
 
 # --- Streamlit Layout ---
 
@@ -1280,47 +1697,194 @@ if weather:
     if pop_val is not None:
         pop_class = "text-blue" if pop_val <= 30 else "text-red"
 
+    def get_weather_icon(desc):
+        desc = desc or ""
+        if "雷" in desc:
+            return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" style="display: block; margin: 0 auto;">
+  <defs>
+    <linearGradient id="thunder-cloud-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#90A4AE" />
+      <stop offset="100%" stop-color="#37474F" />
+    </linearGradient>
+  </defs>
+  <g>
+    <path d="M14 40a9 9 0 0 1 9-9 13 13 0 0 1 24-3 10 10 0 0 1 4 19H14a9 9 0 0 1 0-7z" fill="url(#thunder-cloud-grad)" stroke="#263238" stroke-width="1.5" />
+    <g stroke="#29B6F6" stroke-width="1.5" stroke-linecap="round">
+      <line x1="22" y1="46" x2="20" y2="54" class="svg-rain-drop1" />
+      <line x1="42" y1="46" x2="40" y2="54" class="svg-rain-drop2" />
+    </g>
+    <polygon points="32,36 26,47 32,47 28,58 40,44 34,44" fill="#FFD54F" stroke="#FFB300" stroke-width="1" class="svg-lightning-bolt" />
+  </g>
+</svg>'''
+        elif "雨" in desc or "水" in desc:
+            return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" style="display: block; margin: 0 auto;">
+  <defs>
+    <linearGradient id="rain-cloud-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#CFD8DC" />
+      <stop offset="100%" stop-color="#78909C" />
+    </linearGradient>
+  </defs>
+  <g>
+    <path d="M14 40a9 9 0 0 1 9-9 13 13 0 0 1 24-3 10 10 0 0 1 4 19H14a9 9 0 0 1 0-7z" fill="url(#rain-cloud-grad)" stroke="#546E7A" stroke-width="1.5" />
+    <g stroke="#29B6F6" stroke-width="2" stroke-linecap="round">
+      <line x1="22" y1="46" x2="20" y2="54" class="svg-rain-drop1" />
+      <line x1="32" y1="46" x2="30" y2="54" class="svg-rain-drop2" />
+      <line x1="42" y1="46" x2="40" y2="54" class="svg-rain-drop3" />
+    </g>
+  </g>
+</svg>'''
+        elif "雪" in desc:
+            return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" style="display: block; margin: 0 auto;">
+  <defs>
+    <linearGradient id="snow-cloud-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#ECEFF1" />
+    </linearGradient>
+  </defs>
+  <g>
+    <path d="M14 40a9 9 0 0 1 9-9 13 13 0 0 1 24-3 10 10 0 0 1 4 19H14a9 9 0 0 1 0-7z" fill="url(#snow-cloud-grad)" stroke="#CFD8DC" stroke-width="1.5" />
+    <g fill="#90A4AE" stroke="#90A4AE" stroke-width="0.5">
+      <circle cx="22" cy="46" r="2" class="svg-snow-flake1" />
+      <circle cx="32" cy="48" r="2" class="svg-snow-flake2" />
+      <circle cx="42" cy="46" r="2" class="svg-snow-flake3" />
+    </g>
+  </g>
+</svg>'''
+        elif "陰" in desc:
+            return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" style="display: block; margin: 0 auto;">
+  <defs>
+    <linearGradient id="overcast-cloud-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ECEFF1" />
+      <stop offset="100%" stop-color="#90A4AE" />
+    </linearGradient>
+  </defs>
+  <g>
+    <path d="M14 44a9 9 0 0 1 9-9 13 13 0 0 1 24-3 10 10 0 0 1 4 19H14a9 9 0 0 1 0-7z" fill="url(#overcast-cloud-grad)" stroke="#78909C" stroke-width="1.5" class="svg-cloud-front" />
+  </g>
+</svg>'''
+        elif "多雲" in desc:
+            return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" style="display: block; margin: 0 auto;">
+  <defs>
+    <linearGradient id="cloud-front-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#ECEFF1" />
+    </linearGradient>
+    <linearGradient id="cloud-back-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#CFD8DC" />
+      <stop offset="100%" stop-color="#90A4AE" />
+    </linearGradient>
+  </defs>
+  <g>
+    <path d="M24 36a7 7 0 0 1 7-7 11 11 0 0 1 20-3 8 8 0 0 1 3 15H24a7 7 0 0 1 0-5z" fill="url(#cloud-back-grad)" class="svg-cloud-back" />
+    <path d="M14 44a9 9 0 0 1 9-9 13 13 0 0 1 24-3 10 10 0 0 1 4 19H14a9 9 0 0 1 0-7z" fill="url(#cloud-front-grad)" stroke="#B0BEC5" stroke-width="1.5" class="svg-cloud-front" />
+  </g>
+</svg>'''
+        elif "晴" in desc:
+            return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" style="display: block; margin: 0 auto;">
+  <defs>
+    <radialGradient id="sun-grad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFF7C2" />
+      <stop offset="60%" stop-color="#FFD000" />
+      <stop offset="100%" stop-color="#FF8C00" />
+    </radialGradient>
+  </defs>
+  <g>
+    <g class="svg-spin-class">
+      <line x1="32" y1="12" x2="32" y2="4" stroke="#FF8C00" stroke-width="3" stroke-linecap="round" />
+      <line x1="32" y1="52" x2="32" y2="60" stroke="#FF8C00" stroke-width="3" stroke-linecap="round" />
+      <line x1="12" y1="32" x2="4" y2="32" stroke="#FF8C00" stroke-width="3" stroke-linecap="round" />
+      <line x1="52" y1="32" x2="60" y2="32" stroke="#FF8C00" stroke-width="3" stroke-linecap="round" />
+      <line x1="18" y1="18" x2="12.2" y2="12.2" stroke="#FF8C00" stroke-width="3" stroke-linecap="round" />
+      <line x1="46" y1="46" x2="51.8" y2="51.8" stroke="#FF8C00" stroke-width="3" stroke-linecap="round" />
+      <line x1="18" y1="46" x2="12.2" y2="51.8" stroke="#FF8C00" stroke-width="3" stroke-linecap="round" />
+      <line x1="46" y1="18" x2="51.8" y2="12.2" stroke="#FF8C00" stroke-width="3" stroke-linecap="round" />
+    </g>
+    <circle cx="32" cy="32" r="14" fill="url(#sun-grad)" stroke="#FF8C00" stroke-width="1.5" class="svg-pulse-class" />
+  </g>
+</svg>'''
+        elif "霧" in desc:
+            return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" style="display: block; margin: 0 auto;">
+  <g stroke="#90A4AE" stroke-width="3.5" stroke-linecap="round" opacity="0.8">
+    <line x1="12" y1="24" x2="52" y2="24" class="svg-fog-line1" />
+    <line x1="18" y1="32" x2="46" y2="32" class="svg-fog-line2" />
+    <line x1="14" y1="40" x2="50" y2="40" class="svg-fog-line3" />
+  </g>
+</svg>'''
+        else:
+            return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" style="display: block; margin: 0 auto;">
+  <defs>
+    <radialGradient id="star-grad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFF59D" />
+      <stop offset="100%" stop-color="#FBC02D" />
+    </radialGradient>
+  </defs>
+  <g fill="url(#star-grad)" stroke="#FBC02D" stroke-width="1.5">
+    <path d="M32 14l4 12 12 4-12 4-4 12-4-12-12-4 12-4z" class="svg-pulse-class" />
+  </g>
+</svg>'''
+
+    weather_icon = get_weather_icon(weather.get('desc'))
+
 # Today's Weather Section
-st.subheader(f"☀️ 今日即時天氣 ({district_name})")
+st.subheader("☀️ 即時天氣監控")
 st.markdown(strip_html(f"""
-<div class="weather-card">
-    <div class="weather-title">定位點：{st.session_state['loc_name']}</div>
-    <div class="weather-temp {temp_class}">{weather['temp']}</div>
-    <div class="weather-details">
-        <b>天氣現象</b>：{weather['desc']}<br/>
-        <b>體感溫度</b>：<span class="{apparent_temp_class}">{weather['apparent_temp']}</span><br/>
-        <b>降雨機率</b>：<span class="{pop_class}">{weather['pop']}</span><br/>
-        <small style="opacity: 0.8;">更新時間：{weather['time']}</small>
+<div class="weather-card" style="padding: 18px 24px !important;">
+    <div class="weather-title" style="margin-bottom: 16px !important; display: flex; justify-content: space-between; align-items: center;">
+        <span>定位點：{st.session_state['loc_name']} ({display_district})</span>
+        <small style="opacity: 0.7; font-size: 0.8rem;">更新時間：{weather['time']}</small>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 30px; flex-wrap: wrap;">
+        <!-- 目前溫度 (大字) -->
+        <div class="weather-temp {temp_class}" style="font-size: 3.5rem !important; margin-bottom: 0px !important; flex-shrink: 0;">
+            {weather['temp']}
+        </div>
+        <!-- 平行顯示的其他細節資訊 (CSS Grid) -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 20px; flex-grow: 1; border-left: 2px solid var(--border-color); padding-left: 30px; align-items: center;">
+            <!-- 欄位 1：天氣圖標合併兩列垂直置中 -->
+            <div style="grid-row: 1 / 3; grid-column: 1; display: flex; justify-content: center; align-items: center; height: 100%;">
+                {weather_icon}
+            </div>
+            
+            <!-- 欄位 2：體感溫度（標題 + 數值） -->
+            <div style="text-align: center; font-size: 0.8rem; color: #666666; font-weight: bold; grid-row: 1; grid-column: 2;">體感溫度</div>
+            <div style="text-align: center; font-size: 1.15rem; font-weight: 900; font-family: var(--font-header); height: 48px; display: flex; justify-content: center; align-items: center; grid-row: 2; grid-column: 2;" class="{apparent_temp_class}">{weather['apparent_temp']}</div>
+            
+            <!-- 欄位 3：降雨機率（標題 + 數值） -->
+            <div style="text-align: center; font-size: 0.8rem; color: #666666; font-weight: bold; grid-row: 1; grid-column: 3;">降雨機率</div>
+            <div style="text-align: center; font-size: 1.15rem; font-weight: 900; font-family: var(--font-header); height: 48px; display: flex; justify-content: center; align-items: center; grid-row: 2; grid-column: 3;" class="{pop_class}">{weather['pop']}</div>
+        </div>
     </div>
 </div>
 """), unsafe_allow_html=True)
 
-# Announcements Section (with Scrollbar)
-st.subheader("📢 最新公告")
+# News Headlines Section (with Scrollbar)
+st.subheader("📢 新聞頭條")
 if all_news:
     ann_cards_html = []
     for news in all_news:
-        card_class = "urgent" if news["is_urgent"] else "normal"
-        title_prefix = "🚨【緊急】" if news["is_urgent"] else "📌"
         card_html = strip_html(f"""
-        <div class="announcement-card {card_class}">
-            <div class="announcement-header">{title_prefix} {news['title']}</div>
-            <div style="font-size: 0.8rem; color: #555555; margin-bottom: 8px;">來源：{news['source']} | 發布時間：{news['created_at']}</div>
-            <div>{news['content']}</div>
-        </div>
+        <a href="{news['link']}" target="_blank" style="text-decoration: none; color: inherit; display: block; margin-bottom: 12px;">
+            <div class="announcement-card normal" style="height: 105px; overflow: hidden; padding: 12px 15px !important; margin-bottom: 0px !important;">
+                <div class="announcement-header" style="font-size: 0.98rem; font-weight: bold; line-height: 1.45; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; border-bottom: none; padding-bottom: 0px; margin-bottom: 6px;">📰 {news['title']}</div>
+                <div style="font-size: 0.76rem; color: #666666; display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                    <span>來源：{news['source']}</span>
+                    <span>發布時間：{news['published']}</span>
+                </div>
+            </div>
+        </a>
         """)
         ann_cards_html.append(card_html)
     
     st.markdown(strip_html(f"""
-    <div class="announcement-container">
+    <div class="announcement-container" style="max-height: 380px; overflow-y: auto; padding: 4px; background-color: transparent;">
         {"".join(ann_cards_html)}
     </div>
     """), unsafe_allow_html=True)
 else:
-    st.write("目前無任何公告")
+    st.write("目前無新聞頭條資訊")
 
 # YouBike Section
-st.subheader(f"🚲 YouBike 2.0 即時站點看板（距 {st.session_state['loc_name'][:10]}... 最近）")
+st.subheader("🚲 YouBike站點")
 if youbike_list:
     cols_yb = st.columns(min(len(youbike_list), 3))
     for idx, yb in enumerate(youbike_list[:3]):
@@ -1352,7 +1916,7 @@ else:
     st.write("目前無鄰近 YouBike 2.0 站點資料")
 
 # Bus Arrivals Section (with Scrollbar)
-st.subheader(f"🚌 大台北公車即時到站動態（鄰近 {st.session_state['loc_name'][:10]}... 站牌）")
+st.subheader("🚌 公車即時到站動態(台北市)")
 if bus_list:
     # 排序：先依預估到站時間（raw_time）最小排序，負值（末班車/尚未發車等）排最後，再依路線編號排序
     def bus_sort_key(b):
@@ -1365,9 +1929,9 @@ if bus_list:
             route_num = 99999
         return (sort_time, route_num)
 
-    sorted_bus_list = sorted(bus_list, key=bus_sort_key)
+    sorted_bus_list = sorted(bus_list, key=bus_sort_key)[:25]
 
-    bus_rows_html = []
+    bus_cards_html = []
     for bus in sorted_bus_list:
         # 去程 → #0000AA；返程 → #00AA00
         row_color = "#0000AA" if bus['go_back'] == "去程" else "#00AA00"
@@ -1377,33 +1941,30 @@ if bus_list:
         time_color = "#CC0000" if is_near else row_color
 
         dist_m = bus.get('distance_meter', '')
-        dist_label = f"{dist_m}m" if isinstance(dist_m, int) else ""
+        dist_label = f"{dist_m} 公尺" if isinstance(dist_m, int) else ""
 
-        row_html = strip_html(f"""
-        <tr>
-            <td style="color:{row_color}; font-weight:bold;">{bus['route']}</td>
-            <td style="color:{row_color};">{bus['stop']}<br/><small style="opacity:0.65;">{dist_label}</small></td>
-            <td style="color:{row_color};">{bus['go_back']}</td>
-            <td style="color:{time_color}; {'font-weight:bold;' if is_near else ''}">{bus['desc']}</td>
-        </tr>
+        card_html = strip_html(f"""
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; margin-bottom: 10px; background-color: #FFFFFF; border: var(--border-style); border-radius: var(--radius); box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div style="font-size: 1.25rem; font-weight: 900; color: {row_color}; min-width: 65px; font-family: var(--font-header);">{bus['route']}</div>
+                <div>
+                    <div style="font-weight: bold; color: var(--text-color); font-size: 0.95rem;">{bus['stop']}</div>
+                    <div style="font-size: 0.78rem; color: var(--text-color); opacity: 0.7; margin-top: 3px;">
+                        方向：<span style="color: {row_color}; font-weight: bold;">{bus['go_back']}</span>
+                        {f' | 📍 距離 {dist_label}' if dist_label else ''}
+                    </div>
+                </div>
+            </div>
+            <div style="font-size: 1.15rem; font-weight: bold; color: {time_color}; text-align: right; font-family: var(--font-header);">
+                {bus['desc']}
+            </div>
+        </div>
         """)
-        bus_rows_html.append(row_html)
+        bus_cards_html.append(card_html)
 
     st.markdown(strip_html(f"""
-    <div class="news-table-container">
-        <table class="news-table">
-            <thead>
-                <tr>
-                    <th>路線</th>
-                    <th>站牌名稱</th>
-                    <th>去返程</th>
-                    <th>預估到站時間</th>
-                </tr>
-            </thead>
-            <tbody>
-                {"".join(bus_rows_html)}
-            </tbody>
-        </table>
+    <div style="max-height: 380px; overflow-y: auto; padding: 4px; background-color: transparent;">
+        {"".join(bus_cards_html)}
     </div>
     """), unsafe_allow_html=True)
 else:
@@ -1412,7 +1973,7 @@ else:
 st.markdown("---")
 
 # Row 3: Lunch Recommendations (Full Width)
-st.subheader("🍲 周邊午餐推薦 Top 10（含 Google Places 評論）")
+st.subheader("🍲 美食推薦 Top 10")
 
 has_places_key = bool(os.getenv("GOOGLE_PLACES_API_KEY"))
 if not has_places_key:
@@ -1428,20 +1989,36 @@ with col_filter1:
 with col_filter2:
     selected_sort = st.selectbox("排序方式", sort_options)
 
-# Query database for restaurants
-query_res = db.query(Restaurant)
-if selected_category != "全部":
-    query_res = query_res.filter(Restaurant.category == selected_category)
+# Query dynamic Google Places or database for restaurants
+all_restaurants = []
+if has_places_key:
+    with st.spinner("正在尋找附近最新美食推薦..."):
+        all_restaurants = fetch_dynamic_restaurants(current_lat, current_lng, selected_category)
+
+if not all_restaurants:
+    # Fallback to local DB seed restaurants
+    query_res = db.query(Restaurant)
+    if selected_category != "全部":
+        query_res = query_res.filter(Restaurant.category == selected_category)
+    all_restaurants = query_res.all()
+
+for r in all_restaurants:
+    if r.latitude is not None and r.longitude is not None:
+        r.calculated_distance = int(haversine_distance(current_lat, current_lng, r.latitude, r.longitude))
+    else:
+        r.calculated_distance = r.distance_meter if r.distance_meter is not None else 99999
 
 if "評分" in selected_sort:
-    results = query_res.order_by(Restaurant.google_rating.desc(), Restaurant.review_count.desc()).limit(10).all()
+    all_restaurants.sort(key=lambda x: (-x.google_rating, -x.review_count, x.calculated_distance))
 else:
-    results = query_res.order_by(Restaurant.distance_meter.asc()).limit(10).all()
+    all_restaurants.sort(key=lambda x: (x.calculated_distance, -x.google_rating))
+
+results = all_restaurants[:10]
 
 if results:
     for rank, r in enumerate(results, 1):
         price_str = "¥" * r.price_level
-        expander_label = f"{'🥇' if rank==1 else '🥈' if rank==2 else '🥉' if rank==3 else f'#{rank}'}  {r.name}  |  ⭐ {r.google_rating}  |  {r.category}  |  {price_str}  |  📍 {r.distance_meter} 公尺"
+        expander_label = f"{'🥇' if rank==1 else '🥈' if rank==2 else '🥉' if rank==3 else f'#{rank}'}  {r.name}  |  ⭐ {r.google_rating}  |  {r.category}  |  {price_str}  |  📍 {r.calculated_distance} 公尺"
         with st.expander(expander_label, expanded=False):
             # Fetch Google Places details
             with st.spinner(f"正在查詢 {r.name} 的 Google Places 資料..."):
@@ -1458,7 +2035,7 @@ if results:
                 st.markdown(f"**Google 評分**: ⭐ {place_details['rating']} / 5")
                 st.markdown(f"**餐廳類型**: {r.category}  |  **價位**: {price_str}")
                 st.markdown(f"**評論數**: {r.review_count} 則")
-                st.markdown(f"**距離中心點**: 約 {r.distance_meter} 公尺")
+                st.markdown(f"**距離中心點**: 約 {r.calculated_distance} 公尺")
                 if place_details.get("is_mock"):
                     st.caption("⚠️ 以下為模擬資料（需設定 Google Places API 金鑰以取得即時資訊）")
                 maps_url = f"https://www.google.com/maps/search/{r.name.replace(' ', '+')}+台北"
@@ -1475,7 +2052,7 @@ if results:
                     for rev in place_details["reviews"]:
                         stars = "⭐" * int(rev.get("rating", 5))
                         st.markdown(strip_html(f"""
-                        <div style="border-left: 3px solid var(--accent-color); padding: 8px 12px; margin-bottom: 10px; background-color: var(--card-bg); border-radius: 0 var(--radius) var(--radius) 0;">
+                        <div style="border-left: 3px solid var(--accent-color); padding: 8px 12px; margin-bottom: 10px; background-color: #FFFFFF; border-radius: 0 var(--radius) var(--radius) 0; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
                             <div style="font-size: 0.85rem; font-weight: bold;">{rev['author']} {stars} <span style="opacity:0.6; font-weight:normal;">{rev['time']}</span></div>
                             <div style="font-size: 0.88rem; margin-top: 4px; line-height: 1.5;">{rev['text']}</div>
                         </div>
@@ -1488,9 +2065,9 @@ else:
 st.markdown("---")
 
 # Row 4: 周邊地圖 Map Section (Full Width)
-st.subheader("🗺️ 周邊生活機能地圖")
-# Embedded Google Maps iframe for 台北市內湖區石潭路155號
-iframe_src = "https://maps.google.com/maps?q=%E5%8F%B0%E5%8C%97%E5%B8%82%E5%85%A7%E6%B9%96%E5%8D%80%E7%9F%B3%E6%BD%AD%E8%B7%AF155%E8%99%9F&t=&z=16&ie=UTF8&iwloc=&output=embed"
+st.subheader("🗺️ 周邊地圖")
+# Embedded Google Maps iframe linked with user_lat and user_lng from localization settings
+iframe_src = f"https://maps.google.com/maps?q={st.session_state['user_lat']},{st.session_state['user_lng']}&t=&z=16&ie=UTF8&iwloc=&output=embed"
 st.components.v1.html(
     f'<iframe width="100%" height="450" frameborder="0" style="border:0;" src="{iframe_src}" allowfullscreen></iframe>',
     height=460
