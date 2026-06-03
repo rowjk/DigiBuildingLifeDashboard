@@ -1,0 +1,7 @@
+streamlit
+streamlit-autorefresh
+sqlalchemy
+httpx
+pandas
+feedparser
+python-dotenv

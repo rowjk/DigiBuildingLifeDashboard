@@ -1,0 +1,23 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Databases
+*.db
+dashboard.db
+
+# Streamlit config / cache
+.streamlit/
+
+# Temporary / Scratch folder
+scratch/
+stops_list.txt
+nuxt_data.json
