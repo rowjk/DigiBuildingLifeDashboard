@@ -54,7 +54,7 @@ def google_geocode_or_search(query):
         "捷運昆陽站": (25.0502, 121.5933),
         "捷運港墘站": (25.0798, 121.5751),
         "內湖好市多": (25.0617, 121.5796),
-        "統一數位大樓": (25.059727, 121.589632),
+        "統一數位大樓": (25.063549, 121.589583),
         "南港車站": (25.052187, 121.606775),
         "台北101": (25.033976, 121.564539),
         "捷運南港展覽館站": (25.0558, 121.6173),
@@ -1570,7 +1570,7 @@ def get_mock_taipei_announcements():
 def get_mock_youbike_data():
     return [
         {"sna": "捷運石潭站 (石潭路)", "sbi": 12, "bemp": 18, "update_time": "暫存資料", "lat": 25.060200, "lng": 121.589100},
-        {"sna": "石潭金豐街口 (統一數位大樓)", "sbi": 5, "bemp": 25, "update_time": "暫存資料", "lat": 25.059727, "lng": 121.589632},
+        {"sna": "石潭金豐街口 (統一數位大樓)", "sbi": 5, "bemp": 25, "update_time": "暫存資料", "lat": 25.063549, "lng": 121.589583},
         {"sna": "新湖一路口 (民權東路)", "sbi": 8, "bemp": 12, "update_time": "暫存資料", "lat": 25.062000, "lng": 121.580000},
         {"sna": "捷運昆陽站 (1號出口)", "sbi": 15, "bemp": 20, "update_time": "暫存資料", "lat": 25.050227, "lng": 121.593327},
         {"sna": "捷運昆陽站 (4號出口)", "sbi": 3, "bemp": 27, "update_time": "暫存資料", "lat": 25.050500, "lng": 121.594000},
@@ -1595,7 +1595,7 @@ def get_mock_bus_arrivals():
 
 # Predefined landmark coordinates for quick selection
 predefined_landmarks = {
-    "統一數位大樓 (內湖石潭路155號)": (25.059727, 121.589632),
+    "統一數位大樓 (內湖石潭路155號)": (25.063549, 121.589583),
     "捷運南港展覽館站": (25.0558, 121.6173),
     "南港新富公園": (25.052429, 121.617524),
     "捷運昆陽站": (25.050227, 121.593327),
@@ -1609,9 +1609,9 @@ predefined_landmarks = {
 
 # Coordinate State Setup
 if "user_lat" not in st.session_state:
-    st.session_state["user_lat"] = 25.059727
+    st.session_state["user_lat"] = 25.063549
 if "user_lng" not in st.session_state:
-    st.session_state["user_lng"] = 121.589632
+    st.session_state["user_lng"] = 121.589583
 if "loc_name" not in st.session_state:
     st.session_state["loc_name"] = "統一數位大樓 (內湖石潭路155號)"
 
@@ -2369,9 +2369,11 @@ st.markdown("---")
 # Row 4: 周邊地圖 Map Section (Full Width)
 st.subheader("＃ 周邊地圖")
 
-# Generate base64 DMS coordinates for Google Maps Embed marker
+# Generate base64 DMS coordinates for Google Maps Embed marker fallback
 lat = st.session_state['user_lat']
 lng = st.session_state['user_lng']
+loc_name = st.session_state['loc_name']
+api_key = os.getenv("GOOGLE_PLACES_API_KEY", "")
 
 lat_dir = "N" if lat >= 0 else "S"
 lat_val = abs(lat)
@@ -2390,13 +2392,88 @@ lng_sec = (lng_min_f - lng_min) * 60
 dms_str = f"{lat_deg}°{lat_min:02d}'{lat_sec:04.1f}\"{lat_dir} {lng_deg}°{lng_min:02d}'{lng_sec:04.1f}\"{lng_dir}"
 b64_dms = base64.b64encode(dms_str.encode('utf-8')).decode('utf-8').replace('=', '')
 
-# Official Google Maps Embed URL with custom coordinates, pin marker, and live traffic overlay enabled by !5m1!1e1
-iframe_src = f"https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3614.266205721868!2d{lng}!3d{lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2z{b64_dms}!5e0!3m2!1szh-TW!2stw!4v1717417000000!5m1!1e1"
+# Use Google Maps JavaScript API with high-reliability fallback to Embed Iframe if key is restricted/blocked
+map_html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        #map-container {{
+            width: 100%;
+            height: 450px;
+            position: relative;
+        }}
+        #map {{
+            width: 100%;
+            height: 450px;
+        }}
+        iframe {{
+            width: 100%;
+            height: 450px;
+            border: 0;
+        }}
+        html, body {{
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }}
+    </style>
+</head>
+<body>
+    <div id="map-container">
+        <div id="map"></div>
+    </div>
 
-st.components.v1.html(
-    f'<iframe width="100%" height="450" frameborder="0" style="border:0;" src="{iframe_src}" allowfullscreen></iframe>',
-    height=460
-)
+    <script>
+        let mapInitialized = false;
+        
+        function initMap() {{
+            try {{
+                const center = {{ lat: {lat}, lng: {lng} }};
+                const map = new google.maps.Map(document.getElementById("map"), {{
+                    zoom: 16,
+                    center: center,
+                    mapTypeControl: false,
+                    streetViewControl: false,
+                    fullscreenControl: true
+                }});
+                
+                new google.maps.Marker({{
+                    position: center,
+                    map: map,
+                    title: "{loc_name}"
+                }});
+                
+                const trafficLayer = new google.maps.TrafficLayer();
+                trafficLayer.setMap(map);
+                mapInitialized = true;
+            }} catch (e) {{
+                console.error("Failed to initialize Google Map via JS API:", e);
+                loadFallback();
+            }}
+        }}
+
+        function loadFallback() {{
+            if (mapInitialized) return;
+            console.log("Loading fallback iframe map...");
+            const container = document.getElementById("map-container");
+            container.innerHTML = `<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3614.266205721868!2d{lng}!3d{lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2z{b64_dms}!5e0!3m2!1szh-TW!2stw!4v1717417000000" allowfullscreen></iframe>`;
+        }}
+
+        // Set a timeout of 3.0 seconds to fallback if Google Maps JS fails to initialize
+        setTimeout(() => {{
+            if (!mapInitialized) {{
+                loadFallback();
+            }}
+        }}, 3000);
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key={api_key}&callback=initMap" async defer onerror="loadFallback()"></script>
+</body>
+</html>
+"""
+
+st.components.v1.html(map_html, height=460)
 
 # Footer Section
 today_str = datetime.date.today().strftime("%Y-%m-%d")
