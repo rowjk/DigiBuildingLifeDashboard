@@ -349,8 +349,8 @@ st.markdown("""
 
     /* 資料更新按鈕 */
     .refresh-btn img {
-        width: 36px;
-        height: 36px;
+        width: 50px;
+        height: 50px;
         cursor: pointer;
         border: 2px solid #111111;
         background-color: #F7F4EF;
