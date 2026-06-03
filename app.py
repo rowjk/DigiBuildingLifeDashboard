@@ -323,16 +323,19 @@ st.markdown("<div id='linkto_top'></div>", unsafe_allow_html=True)
 # ----------------- Theme Switcher configuration -----------------
 with st.sidebar:
     st.markdown("### 🎨 主題風格切換")
-    selected_theme = sac.segmented(
+    selected_theme = sac.buttons(
         items=[
-            sac.SegmentedItem(label="新聞紙經典"),
-            sac.SegmentedItem(label="北歐極簡"),
-            sac.SegmentedItem(label="暖陽沙黃")
+            sac.ButtonsItem(label="新聞紙經典"),
+            sac.ButtonsItem(label="北歐極簡"),
+            sac.ButtonsItem(label="暖陽沙黃")
         ],
-        align="center",
+        direction="vertical",
+        use_container_width=True,
+        variant="filled",
         color="dark",
         size="sm"
     )
+
 
 # Map selected theme to CSS Variables
 theme_vars = {
