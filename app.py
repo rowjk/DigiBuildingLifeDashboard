@@ -104,7 +104,7 @@ st.markdown("""
         font-size: 1.8rem !important;
         font-family: 'Fraunces', Georgia, serif !important;
         font-weight: 900 !important;
-        color: #111111 !important;
+        color: #111111;
     }
 
     /* 天氣卡片：由炫目漸層改為極簡新聞專欄風格 */
@@ -272,7 +272,7 @@ st.markdown("""
     .news-table td {
         padding: 10px !important;
         border-bottom: 1px solid #111111 !important;
-        color: #111111 !important;
+        color: #111111;
     }
     .news-table tr:last-child td {
         border-bottom: none !important;
@@ -717,17 +717,21 @@ if youbike_list:
     cols_yb = st.columns(min(len(youbike_list), 3))
     for idx, yb in enumerate(youbike_list[:3]):
         with cols_yb[idx]:
+            sbi_val = int(yb['sbi']) if yb['sbi'] is not None else 0
+            bemp_val = int(yb['bemp']) if yb['bemp'] is not None else 0
+            sbi_color = "#CC0000" if sbi_val <= 2 else "#0000AA"
+            bemp_color = "#CC0000" if bemp_val <= 2 else "#00AA00"
             st.markdown(strip_html(f"""
             <div class="metric-card">
                 <div style="font-weight: bold; font-size: 1rem; color: #111111; font-family: 'Fraunces', serif; border-bottom: 1px dashed #111111; padding-bottom: 5px; margin-bottom: 8px;">{yb['sna']}</div>
                 <div style="display: flex; justify-content: space-between; margin-top: 10px;">
                     <div>
                         <span class="metric-label">可借車</span><br/>
-                        <span class="metric-value" style="color: #111111;">{yb['sbi']}</span>
+                        <span class="metric-value" style="color: {sbi_color} !important;">{yb['sbi']}</span>
                     </div>
                     <div>
                         <span class="metric-label">可還車</span><br/>
-                        <span class="metric-value" style="color: #555555;">{yb['bemp']}</span>
+                        <span class="metric-value" style="color: {bemp_color} !important;">{yb['bemp']}</span>
                     </div>
                 </div>
                 <div style="font-size: 0.75rem; color: #555555; margin-top: 8px;">更新：{yb['update_time']}</div>
@@ -741,12 +745,19 @@ st.subheader("🚌 大台北公車即時到站動態")
 if bus_list:
     bus_rows_html = []
     for bus in bus_list:
-        time_style = "font-weight: bold; color: #CC0000;" if "即將到站" in bus['desc'] or "分鐘" in bus['desc'] and int(bus['raw_time']) <= 180 else "color: #111111;"
+        # Determine base color by direction
+        row_color = "#0000AA" if bus['go_back'] == "去程" else "#00AA00"
+        
+        # Check if estimate time is <= 2 minutes (120 seconds) or "即將到站"
+        is_near = (0 <= bus['raw_time'] <= 120) or (bus['desc'] == "即將到站")
+        time_color = "#CC0000" if is_near else row_color
+        time_style = f"color: {time_color} !important; font-weight: bold;" if is_near else f"color: {time_color} !important;"
+        
         row_html = strip_html(f"""
         <tr>
-            <td style="font-weight: bold;">{bus['route']}</td>
-            <td>{bus['stop']}</td>
-            <td>{bus['go_back']}</td>
+            <td style="font-weight: bold; color: {row_color} !important;">{bus['route']}</td>
+            <td style="color: {row_color} !important;">{bus['stop']}</td>
+            <td style="color: {row_color} !important;">{bus['go_back']}</td>
             <td style="{time_style}">{bus['desc']}</td>
         </tr>
         """)
