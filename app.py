@@ -880,10 +880,10 @@ st.markdown(f"""
         border: var(--border-style) !important;
         border-radius: var(--radius) !important;
         box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
-        margin-bottom: 6px !important;
+        margin-bottom: 0px !important;
     }}
     .element-container:has(div[data-testid="stExpander"]) {{
-        margin-bottom: 6px !important;
+        margin-bottom: -8px !important;
     }}
     /* 展開前的 Header (Summary) */
     .streamlit-expanderHeader, [data-testid="stExpander"] summary {{
