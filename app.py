@@ -98,61 +98,64 @@ def google_geocode_or_search(query):
 
 @st.cache_data(ttl=3600)
 def fetch_google_place_details(restaurant_name, lat, lng):
+    """Use the new Places API v1 (places.googleapis.com/v1) to get real reviews."""
     api_key = os.getenv("GOOGLE_PLACES_API_KEY")
     if api_key:
         try:
-            # 1. Find Place to get Place ID
-            find_url = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
-            find_params = {
-                "input": restaurant_name,
-                "inputtype": "textquery",
-                "locationbias": f"point:{lat},{lng}",
-                "fields": "place_id",
-                "key": api_key
+            headers = {
+                "Content-Type": "application/json",
+                "X-Goog-Api-Key": api_key,
+                "X-Goog-FieldMask": (
+                    "places.id,places.displayName,places.rating,"
+                    "places.reviews,places.currentOpeningHours,"
+                    "places.regularOpeningHours"
+                )
             }
-            with httpx.Client(verify=False, timeout=3.0) as client:
-                r_find = client.get(find_url, params=find_params)
-                if r_find.status_code == 200:
-                    find_data = r_find.json()
-                    if find_data.get("candidates"):
-                        place_id = find_data["candidates"][0]["place_id"]
-                        
-                        # 2. Get Details
-                        details_url = "https://maps.googleapis.com/maps/api/place/details/json"
-                        details_params = {
-                            "place_id": place_id,
-                            "fields": "name,rating,reviews,opening_hours,formatted_phone_number,website",
-                            "key": api_key,
-                            "language": "zh-TW"
+            body = {
+                "textQuery": f"{restaurant_name} 台北",
+                "locationBias": {
+                    "circle": {
+                        "center": {"latitude": float(lat), "longitude": float(lng)},
+                        "radius": 3000.0
+                    }
+                },
+                "languageCode": "zh-TW",
+                "maxResultCount": 1
+            }
+            with httpx.Client(verify=False, timeout=8.0) as client:
+                r = client.post(
+                    "https://places.googleapis.com/v1/places:searchText",
+                    headers=headers,
+                    json=body
+                )
+                if r.status_code == 200:
+                    places = r.json().get("places", [])
+                    if places:
+                        p = places[0]
+                        rating = p.get("rating", 4.0)
+
+                        # Parse reviews
+                        reviews = []
+                        for rev in p.get("reviews", [])[:3]:
+                            reviews.append({
+                                "author": rev.get("authorAttribution", {}).get("displayName", "Google 顧客"),
+                                "rating": rev.get("rating", 5),
+                                "text": rev.get("text", {}).get("text", ""),
+                                "time": rev.get("relativePublishTimeDescription", "最近")
+                            })
+
+                        # Parse opening hours
+                        oh = p.get("currentOpeningHours") or p.get("regularOpeningHours", {})
+                        open_now = oh.get("openNow")
+                        weekday_text = oh.get("weekdayDescriptions", [])
+
+                        return {
+                            "rating": rating,
+                            "reviews": reviews,
+                            "open_now": open_now,
+                            "weekday_text": weekday_text,
+                            "is_mock": False
                         }
-                        r_details = client.get(details_url, params=details_params)
-                        if r_details.status_code == 200:
-                            det_data = r_details.json().get("result", {})
-                            
-                            # Parse details
-                            rating = det_data.get("rating", 4.0)
-                            reviews = []
-                            for rev in det_data.get("reviews", [])[:3]:
-                                reviews.append({
-                                    "author": rev.get("author_name", "Google 顧客"),
-                                    "rating": rev.get("rating", 5),
-                                    "text": rev.get("text", "美味推薦！"),
-                                    "time": rev.get("relative_time_description", "最近")
-                                })
-                            
-                            op_hours = det_data.get("opening_hours", {})
-                            open_now = op_hours.get("open_now")
-                            weekday_text = op_hours.get("weekday_text", [])
-                            
-                            return {
-                                "rating": rating,
-                                "reviews": reviews,
-                                "open_now": open_now,
-                                "weekday_text": weekday_text,
-                                "phone": det_data.get("formatted_phone_number", "無提供"),
-                                "website": det_data.get("website", ""),
-                                "is_mock": False
-                            }
         except Exception:
             pass
 
@@ -161,32 +164,27 @@ def fetch_google_place_details(restaurant_name, lat, lng):
     current_hour = datetime.datetime.now().hour
     if current_hour < 11 or current_hour > 21:
         open_now = False
-        
+
     mock_reviews = [
-        {"author": "James Chen", "rating": 5, "text": f"這家餐廳的服務很棒，環境乾淨！餐點份量十足，特別是招牌菜色非常好吃，極力推薦！", "time": "1 週前"},
-        {"author": "林小姐", "rating": 4, "text": f"這家店的口味很棒，每到中午人都很多。是上班族午餐的優質選擇，出餐速度也很快！", "time": "3 天前"},
+        {"author": "James Chen", "rating": 5, "text": "這家餐廳的服務很棒，環境乾淨！餐點份量十足，特別是招牌菜色非常好吃，極力推薦！", "time": "1 週前"},
+        {"author": "林小姐", "rating": 4, "text": "這家店的口味很棒，每到中午人都很多。是上班族午餐的優質選擇，出餐速度也很快！", "time": "3 天前"},
         {"author": "張先生", "rating": 4, "text": "味道很道地，價格親民。CP值極高！下次會想再來嘗試其他餐點。", "time": "2 週前"}
     ]
-    
+
     weekday_text = [
-        "星期一: 11:00 – 21:00",
-        "星期二: 11:00 – 21:00",
-        "星期三: 11:00 – 21:00",
-        "星期四: 11:00 – 21:00",
-        "星期五: 11:00 – 21:00",
-        "星期六: 11:00 – 21:00",
-        "星期日: 休息"
+        "星期一: 11:00 – 21:00", "星期二: 11:00 – 21:00", "星期三: 11:00 – 21:00",
+        "星期四: 11:00 – 21:00", "星期五: 11:00 – 21:00",
+        "星期六: 11:00 – 21:00", "星期日: 休息"
     ]
-    
+
     return {
         "rating": 4.2,
         "reviews": mock_reviews,
         "open_now": open_now,
         "weekday_text": weekday_text,
-        "phone": "02-2792-XXXX",
-        "website": "https://maps.google.com",
         "is_mock": True
     }
+
 
 # Load environment variables
 load_dotenv()
