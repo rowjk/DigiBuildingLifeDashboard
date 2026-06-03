@@ -12,6 +12,9 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from database import get_session, Announcement, Restaurant, AdminUser, hash_password
 
+def strip_html(html_str):
+    return "".join(line.strip() for line in html_str.strip().split("\n"))
+
 # Load environment variables
 load_dotenv()
 
@@ -660,18 +663,18 @@ with col_header_left:
     st.markdown("<h1 style='margin:0;'>🏢 統一數位大樓生活資訊平台<span class='title-subtitle'>(LIFE DASHBOARD)</span></h1>", unsafe_allow_html=True)
 with col_header_right:
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    st.markdown(f"""
+    st.markdown(strip_html(f"""
     <div style="text-align: right; font-family: 'Inter', sans-serif; font-size: 0.9rem; color: #555555; line-height: 1.6; margin-top: 8px;">
         <b>系統時間</b>：{now_str}<br/>
         ⏱️ 網頁每 60 秒自動重新載入 ({count})
     </div>
-    """, unsafe_allow_html=True)
+    """), unsafe_allow_html=True)
 
 st.markdown("---")
 
 # Today's Weather Section
 st.subheader("☀️ 今日即時天氣 (內湖區)")
-st.markdown(f"""
+st.markdown(strip_html(f"""
 <div class="weather-card">
     <div class="weather-title">台北市內湖區石潭路 155 號</div>
     <div class="weather-temp">{weather['temp']}</div>
@@ -682,29 +685,29 @@ st.markdown(f"""
         <small style="opacity: 0.8;">更新時間：{weather['time']}</small>
     </div>
 </div>
-""", unsafe_allow_html=True)
+"""), unsafe_allow_html=True)
 
 # Announcements Section (with Scrollbar)
-st.subheader("📢 最新與緊急公告區")
+st.subheader("📢 最新公告")
 if all_news:
     ann_cards_html = []
     for news in all_news:
         card_class = "urgent" if news["is_urgent"] else "normal"
         title_prefix = "🚨【緊急】" if news["is_urgent"] else "📌"
-        card_html = f"""
+        card_html = strip_html(f"""
         <div class="announcement-card {card_class}">
             <div class="announcement-header">{title_prefix} {news['title']}</div>
             <div style="font-size: 0.8rem; color: #555555; margin-bottom: 8px;">來源：{news['source']} | 發布時間：{news['created_at']}</div>
             <div>{news['content']}</div>
         </div>
-        """
+        """)
         ann_cards_html.append(card_html)
     
-    st.markdown(f"""
+    st.markdown(strip_html(f"""
     <div class="announcement-container">
         {"".join(ann_cards_html)}
     </div>
-    """, unsafe_allow_html=True)
+    """), unsafe_allow_html=True)
 else:
     st.write("目前無任何公告")
 
@@ -714,7 +717,7 @@ if youbike_list:
     cols_yb = st.columns(min(len(youbike_list), 3))
     for idx, yb in enumerate(youbike_list[:3]):
         with cols_yb[idx]:
-            st.markdown(f"""
+            st.markdown(strip_html(f"""
             <div class="metric-card">
                 <div style="font-weight: bold; font-size: 1rem; color: #111111; font-family: 'Fraunces', serif; border-bottom: 1px dashed #111111; padding-bottom: 5px; margin-bottom: 8px;">{yb['sna']}</div>
                 <div style="display: flex; justify-content: space-between; margin-top: 10px;">
@@ -729,7 +732,7 @@ if youbike_list:
                 </div>
                 <div style="font-size: 0.75rem; color: #555555; margin-top: 8px;">更新：{yb['update_time']}</div>
             </div>
-            """, unsafe_allow_html=True)
+            """), unsafe_allow_html=True)
 else:
     st.write("目前無鄰近 YouBike 2.0 站點資料")
 
@@ -739,17 +742,17 @@ if bus_list:
     bus_rows_html = []
     for bus in bus_list:
         time_style = "font-weight: bold; color: #CC0000;" if "即將到站" in bus['desc'] or "分鐘" in bus['desc'] and int(bus['raw_time']) <= 180 else "color: #111111;"
-        row_html = f"""
+        row_html = strip_html(f"""
         <tr>
             <td style="font-weight: bold;">{bus['route']}</td>
             <td>{bus['stop']}</td>
             <td>{bus['go_back']}</td>
             <td style="{time_style}">{bus['desc']}</td>
         </tr>
-        """
+        """)
         bus_rows_html.append(row_html)
         
-    st.markdown(f"""
+    st.markdown(strip_html(f"""
     <div class="news-table-container">
         <table class="news-table">
             <thead>
@@ -765,7 +768,7 @@ if bus_list:
             </tbody>
         </table>
     </div>
-    """, unsafe_allow_html=True)
+    """), unsafe_allow_html=True)
 else:
     st.write("目前無公車到站資訊")
 
@@ -824,7 +827,7 @@ st.components.v1.html(
 
 # Footer Section
 today_str = datetime.date.today().strftime("%Y-%m-%d")
-st.markdown(f"""
+st.markdown(strip_html(f"""
 <div style="border-top: 3px double #111111; padding-top: 20px; margin-top: 40px; padding-bottom: 20px; text-align: center; font-family: 'Inter', sans-serif; font-size: 0.85rem; color: #555555; line-height: 1.6;">
     <div>© 2026 統一數位大樓生活資訊平台 (Life Dashboard) 版權所有</div>
     <div>版本資訊：v1.2.0 | 更新日期：{today_str}</div>
@@ -834,7 +837,7 @@ st.markdown(f"""
         <a href="https://github.com/rowjk" target="_blank" style="color: #111111; text-decoration: underline; font-weight: bold;">GitHub</a>
     </div>
 </div>
-""", unsafe_allow_html=True)
+"""), unsafe_allow_html=True)
 
 # ----------------- Sidebar Admin Panel -----------------
 with st.sidebar:
