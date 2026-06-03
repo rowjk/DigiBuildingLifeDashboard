@@ -633,6 +633,7 @@ st.markdown(f"""
     }}
 
     /* 移除主題切換元件的邊框與底色 */
+    .element-container iframe[src*="buttons"],
     .element-container iframe[title*="buttons"] {{
         border: none !important;
         border-radius: 0px !important;
@@ -640,6 +641,7 @@ st.markdown(f"""
         background-color: transparent !important;
         box-shadow: none !important;
     }}
+
     
     /* 側邊欄風格同步 */
     section[data-testid="stSidebar"] {{
