@@ -2312,7 +2312,7 @@ if results:
             except Exception:
                 pl_val = 1
         pl_val = max(1, min(pl_val, 4))
-        price_str = "¥" * pl_val
+        price_str = "＄" * pl_val
 
         expander_label = f"{'🥇' if rank==1 else '🥈' if rank==2 else '🥉' if rank==3 else f'#{rank}'}  {r.name}  |  ⭐ {r.google_rating}  |  {r.category}  |  {price_str}  |  📍 {r.calculated_distance} 公尺"
         with st.expander(expander_label, expanded=False):
