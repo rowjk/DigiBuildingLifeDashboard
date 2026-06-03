@@ -16,6 +16,14 @@ from sqlalchemy.orm import Session
 from database import get_session, Announcement, Restaurant, AdminUser, hash_password
 import base64
 
+# Automatically initialize SQLite database if it does not exist
+if not os.path.exists("dashboard.db"):
+    try:
+        from database import init_db
+        init_db()
+    except Exception:
+        pass
+
 # Base64 encode images for floating button and manual refresh button
 back_to_top_base64 = ""
 update_btn_base64 = ""
