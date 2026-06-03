@@ -1519,7 +1519,8 @@ def fetch_road_traffic_data(lat, lng, city_name):
                 "road": rd["name"],
                 "type": ev_type,
                 "desc": f"【{rd['name']}】({ev_dir}) 發生 {ev_type}：{descriptions[ev_type]}",
-                "severity": "high" if ev_type == "車禍事故" else "medium"
+                "severity": "high" if ev_type == "車禍事故" else "medium",
+                "time": data_time.strftime("%H:%M")
             })
 
     # Try to fetch real APIs dynamically in background (defensive check)
@@ -2223,8 +2224,9 @@ if traffic_data:
                     
                     card_html = strip_html(f"""
                     <div style="border-left: 4px solid {border_color}; padding: 10px 14px; margin-bottom: 8px; background-color: #FFFFFF; border-radius: 0 var(--radius) var(--radius) 0; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
-                        <div style="font-size: 0.88rem; font-weight: bold; color: var(--text-color); display: flex; align-items: center; gap: 6px;">
-                            <span>{icon} {ev['type']}</span>
+                        <div style="font-size: 0.88rem; font-weight: bold; color: var(--text-color); display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                            <span style="display: flex; align-items: center; gap: 6px;">{icon} {ev['type']}</span>
+                            <span style="font-size: 0.72rem; font-weight: normal; color: var(--text-color); opacity: 0.55;">{ev.get('time', '')}</span>
                         </div>
                         <div style="font-size: 0.82rem; margin-top: 4px; line-height: 1.4; color: var(--text-color); opacity: 0.9;">
                             {ev['desc']}
