@@ -1352,13 +1352,16 @@ else:
 # Bus Arrivals Section (with Scrollbar)
 st.subheader(f"🚌 大台北公車即時到站動態（鄰近 {st.session_state['loc_name'][:10]}... 站牌）")
 if bus_list:
-    # 排序：先依預估到站時間（raw_time）最小，再依路線編號
+    # 排序：先依預估到站時間（raw_time）最小排序，負值（末班車/尚未發車等）排最後，再依路線編號排序
     def bus_sort_key(b):
+        rt = b.get('raw_time', 99999)
+        # 負值代表特殊狀態（尚未發車/末班車已過等），排到最後
+        sort_time = rt if rt >= 0 else (99999 + abs(rt))
         try:
-            route_num = int("".join(filter(str.isdigit, str(b['route']))) or "9999")
+            route_num = int("".join(filter(str.isdigit, str(b['route']))) or "99999")
         except Exception:
-            route_num = 9999
-        return (b.get('raw_time', 9999), route_num)
+            route_num = 99999
+        return (sort_time, route_num)
 
     sorted_bus_list = sorted(bus_list, key=bus_sort_key)
 
