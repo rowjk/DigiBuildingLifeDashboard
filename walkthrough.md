@@ -73,7 +73,7 @@
    * **功能邏輯**：點選此按鈕會發送 `?refresh=1` 的網頁查詢參數，當 Streamlit 檢測到此參數時，會主動清除所有第三方 API 的快取資料（天氣、YouBike 2.0、公車即時到站、北市府最新消息公告），接著以 `st.query_params.clear()` 及 `st.rerun()`完成重刷與參數重設，確保您可以即時點選重刷資料且不會陷入重刷循環。
 3. **右下角加入「回到最上方」按鈕**：
    * 在網頁的最頂部埋入了不可見的滾動錨點 `<div id='linkto_top'></div>`。
-   * 在網頁的右下角固定定位（`position: fixed`）呈現回到最上方按鈕，該按鈕讀取專案目錄下的 `BackToTop.png` 檔案，利用 Base64 編碼技術將二進位圖像直接嵌入 HTML 作為資料 URI (`data:image/png;base64`)，其尺寸為 `50px * 50px`。
+   * 在網頁的右下角固定定位（`position: fixed`）呈現回到最上方按鈕，該按鈕讀取專案目錄下的 `BackToTop_2.png` 檔案，利用 Base64 編碼技術將二進位圖像直接嵌入 HTML 作為資料 URI (`data:image/png;base64`)，其尺寸為 `50px * 50px`。
    * **懸停與點選效果**：滑鼠移至按鈕上時會自動放大 10%（`scale(1.1)`）並觸發 Newsprint 黑白反白濾鏡效果（`filter: invert(1)`），點選後會將瀏覽器平滑捲動回頁面頂部的錨點。
 
 ---
