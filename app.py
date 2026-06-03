@@ -1390,45 +1390,45 @@ def fetch_road_traffic_data(lat, lng, city_name):
     if city_name != "台北市":
         return {"status": "unavailable"}
 
-    # Define Taipei city road and freeway checkpoints (with coords)
+    # Define Taipei city road and freeway checkpoints (with coords and directions)
     checkpoints = [
         # 內湖 / 南港區
-        {"name": "成功路二段 (成功橋至三軍總醫院)", "type": "市區道路", "coords": (25.0601, 121.5912)},
-        {"name": "石潭路 (成功路二段至行善路)", "type": "市區道路", "coords": (25.0597, 121.5896)},
-        {"name": "舊宗路一段 (民權東路六段至新湖三路)", "type": "市區道路", "coords": (25.0617, 121.5796)},
-        {"name": "行善路 (舊宗路至成功路)", "type": "市區道路", "coords": (25.0608, 121.5845)},
-        {"name": "民權東路六段 (民權大橋至瑞光路)", "type": "市區道路", "coords": (25.0635, 121.5815)},
-        {"name": "南京東路六段 (成功路至舊宗路)", "type": "市區道路", "coords": (25.0583, 121.5819)},
-        {"name": "忠孝東路六段 (捷運昆陽站附近)", "type": "市區道路", "coords": (25.0502, 121.5933)},
-        {"name": "昆陽街 (市民大道至忠孝東路)", "type": "市區道路", "coords": (25.0515, 121.5930)},
-        {"name": "向陽路 (市民大道至重陽路)", "type": "市區道路", "coords": (25.0535, 121.5925)},
-        {"name": "忠孝東路七段 (南港車站附近)", "type": "市區道路", "coords": (25.0521, 121.6067)},
-        {"name": "研究院路一段 (市民大道至南港路)", "type": "市區道路", "coords": (25.0510, 121.6150)},
-        {"name": "內湖路一段 (捷運港墘站附近)", "type": "市區道路", "coords": (25.0798, 121.5751)},
-        {"name": "港墘路 (內湖路至瑞光路)", "type": "市區道路", "coords": (25.0780, 121.5760)},
-        {"name": "瑞光路 (港墘路至基湖路)", "type": "市區道路", "coords": (25.0760, 121.5720)},
-        {"name": "環山路一段 (港墘路至大直)", "type": "市區道路", "coords": (25.0830, 121.5710)},
-        {"name": "內科園區湖濱路 (內湖路二段附近)", "type": "市區道路", "coords": (25.0750, 121.5830)},
+        {"name": "成功路二段 (成功橋至三軍總醫院)", "type": "市區道路", "coords": (25.0601, 121.5912), "dirs": ["北向", "南向"]},
+        {"name": "石潭路 (成功路二段至行善路)", "type": "市區道路", "coords": (25.0597, 121.5896), "dirs": ["北向", "南向"]},
+        {"name": "舊宗路一段 (民權東路六段至新湖三路)", "type": "市區道路", "coords": (25.0617, 121.5796), "dirs": ["北向", "南向"]},
+        {"name": "行善路 (舊宗路至成功路)", "type": "市區道路", "coords": (25.0608, 121.5845), "dirs": ["東向", "西向"]},
+        {"name": "民權東路六段 (民權大橋至瑞光路)", "type": "市區道路", "coords": (25.0635, 121.5815), "dirs": ["東向", "西向"]},
+        {"name": "南京東路六段 (成功路至舊宗路)", "type": "市區道路", "coords": (25.0583, 121.5819), "dirs": ["東向", "西向"]},
+        {"name": "忠孝東路六段 (捷運昆陽站附近)", "type": "市區道路", "coords": (25.0502, 121.5933), "dirs": ["東向", "西向"]},
+        {"name": "昆陽街 (市民大道至忠孝東路)", "type": "市區道路", "coords": (25.0515, 121.5930), "dirs": ["北向", "南向"]},
+        {"name": "向陽路 (市民大道至重陽路)", "type": "市區道路", "coords": (25.0535, 121.5925), "dirs": ["北向", "南向"]},
+        {"name": "忠孝東路七段 (南港車站附近)", "type": "市區道路", "coords": (25.0521, 121.6067), "dirs": ["東向", "西向"]},
+        {"name": "研究院路一段 (市民大道至南港路)", "type": "市區道路", "coords": (25.0510, 121.6150), "dirs": ["北向", "南向"]},
+        {"name": "內湖路一段 (捷運港墘站附近)", "type": "市區道路", "coords": (25.0798, 121.5751), "dirs": ["東向", "西向"]},
+        {"name": "港墘路 (內湖路至瑞光路)", "type": "市區道路", "coords": (25.0780, 121.5760), "dirs": ["北向", "南向"]},
+        {"name": "瑞光路 (港墘路至基湖路)", "type": "市區道路", "coords": (25.0760, 121.5720), "dirs": ["北向", "南向"]},
+        {"name": "環山路一段 (港墘路至大直)", "type": "市區道路", "coords": (25.0830, 121.5710), "dirs": ["東向", "西向"]},
+        {"name": "內科園區湖濱路 (內湖路二段附近)", "type": "市區道路", "coords": (25.0750, 121.5830), "dirs": ["東向", "西向"]},
         
         # 台北車站 / 中正 / 大同區
-        {"name": "忠孝西路一段 (台北車站前)", "type": "市區道路", "coords": (25.0478, 121.5170)},
-        {"name": "中山北路一段 (忠孝東路至南京東路)", "type": "市區道路", "coords": (25.0500, 121.5230)},
-        {"name": "重慶北路一段 (市民大道至南京西路)", "type": "市區道路", "coords": (25.0495, 121.5130)},
-        {"name": "市民大道一段 (台北車站旁)", "type": "市區道路", "coords": (25.0485, 121.5180)},
+        {"name": "忠孝西路一段 (台北車站前)", "type": "市區道路", "coords": (25.0478, 121.5170), "dirs": ["東向", "西向"]},
+        {"name": "中山北路一段 (忠孝東路至南京東路)", "type": "市區道路", "coords": (25.0500, 121.5230), "dirs": ["北向", "南向"]},
+        {"name": "重慶北路一段 (市民大道至南京西路)", "type": "市區道路", "coords": (25.0495, 121.5130), "dirs": ["北向", "南向"]},
+        {"name": "市民大道一段 (台北車站旁)", "type": "市區道路", "coords": (25.0485, 121.5180), "dirs": ["東向", "西向"]},
         
         # 信義區
-        {"name": "信義路五段 (台北101前)", "type": "市區道路", "coords": (25.0330, 121.5654)},
-        {"name": "市府路 (松高路至信義路)", "type": "市區道路", "coords": (25.0360, 121.5645)},
-        {"name": "基隆路二段 (信義路至光復南路)", "type": "市區道路", "coords": (25.0320, 121.5600)},
-        {"name": "信義快速道路 (信義端至文山隧道)", "type": "快速道路", "coords": (25.0250, 121.5680)},
+        {"name": "信義路五段 (台北101前)", "type": "市區道路", "coords": (25.0330, 121.5654), "dirs": ["東向", "西向"]},
+        {"name": "市府路 (松高路至信義路)", "type": "市區道路", "coords": (25.0360, 121.5645), "dirs": ["北向", "南向"]},
+        {"name": "基隆路二段 (信義路至光復南路)", "type": "市區道路", "coords": (25.0320, 121.5600), "dirs": ["北向", "南向"]},
+        {"name": "信義快速道路 (信義端至文山隧道)", "type": "快速道路", "coords": (25.0250, 121.5680), "dirs": ["南向", "北向"]},
 
         # 鄰近國道路段
-        {"name": "國道1號 - 內湖交流道 (17.2K)", "type": "國道", "coords": (25.0645, 121.5930)},
-        {"name": "國道1號 - 東湖交流道 (15.2K)", "type": "國道", "coords": (25.0680, 121.6110)},
-        {"name": "國道1號 - 堤頂交流道 (18.6K)", "type": "國道", "coords": (25.0610, 121.5750)},
-        {"name": "國道1號 - 圓山交流道 (23.2K)", "type": "國道", "coords": (25.0700, 121.5290)},
-        {"name": "國道3號 - 南港交流道 (16.5K)", "type": "國道", "coords": (25.0440, 121.6230)},
-        {"name": "國道3號 - 南港系統交流道 (19.1K)", "type": "國道", "coords": (25.0420, 121.6090)},
+        {"name": "國道1號 - 內湖交流道 (17.2K)", "type": "國道", "coords": (25.0645, 121.5930), "dirs": ["北向", "南向"]},
+        {"name": "國道1號 - 東湖交流道 (15.2K)", "type": "國道", "coords": (25.0680, 121.6110), "dirs": ["北向", "南向"]},
+        {"name": "國道1號 - 堤頂交流道 (18.6K)", "type": "國道", "coords": (25.0610, 121.5750), "dirs": ["北向", "南向"]},
+        {"name": "國道1號 - 圓山交流道 (23.2K)", "type": "國道", "coords": (25.0700, 121.5290), "dirs": ["北向", "南向"]},
+        {"name": "國道3號 - 南港交流道 (16.5K)", "type": "國道", "coords": (25.0440, 121.6230), "dirs": ["北向", "南向"]},
+        {"name": "國道3號 - 南港系統交流道 (19.1K)", "type": "國道", "coords": (25.0420, 121.6090), "dirs": ["北向", "南向"]},
     ]
 
     # Calculate distance and filter checkpoints within 5.0 km
@@ -1444,16 +1444,24 @@ def fetch_road_traffic_data(lat, lng, city_name):
     nearby_roads.sort(key=lambda x: x["distance_meter"])
     nearby_roads = nearby_roads[:6]
 
-    # Dynamic speed and traffic level generation with random seed based on hour
+    # Generate 5-minute interval timestamp and seed for state consistency
+    now = datetime.datetime.now()
+    minute_5 = (now.minute // 5) * 5
+    data_time = now.replace(minute=minute_5, second=0, microsecond=0)
+    data_time_str = data_time.strftime("%Y-%m-%d %H:%M:%S")
+    seed_str = f"{now.strftime('%Y%m%d%H')}{minute_5:02d}"
+
     import random
-    random.seed(int(datetime.datetime.now().strftime("%Y%m%d%H")))
+    random.seed(int(seed_str))
 
     for rd in nearby_roads:
-        if rd["type"] == "國道":
-            base_speed = random.choice([85, 92, 98, 78, 62, 88])
-        else:
-            base_speed = random.choice([42, 38, 48, 28, 18, 45, 35])
-        rd["speed"] = base_speed
+        rd["speeds"] = {}
+        for d in rd["dirs"]:
+            if rd["type"] == "國道":
+                base_speed = random.choice([85, 92, 98, 78, 62, 88])
+            else:
+                base_speed = random.choice([42, 38, 48, 28, 18, 45, 35])
+            rd["speeds"][d] = base_speed
 
     # Generate events
     event_types = ["車禍事故", "車輛故障", "道路施工", "車多回堵"]
@@ -1469,17 +1477,20 @@ def fetch_road_traffic_data(lat, lng, city_name):
         # 35% chance of event on each nearby road
         if random.random() < 0.35:
             ev_type = random.choice(event_types)
-            # Adjust speed due to event
-            if ev_type in ["車禍事故", "車多回堵"]:
-                rd["speed"] = max(5, int(rd["speed"] * random.uniform(0.2, 0.4)))
-            elif ev_type in ["道路施工", "車輛故障"]:
-                rd["speed"] = max(15, int(rd["speed"] * random.uniform(0.4, 0.6)))
+            ev_dir = random.choice(rd["dirs"] + ["雙向"])
             
-            direction = random.choice(["北上", "南下", "東向", "西向", "雙向"])
+            # Lower speed due to event for the matching direction
+            for d in rd["dirs"]:
+                if ev_dir == "雙向" or d == ev_dir:
+                    if ev_type in ["車禍事故", "車多回堵"]:
+                        rd["speeds"][d] = max(5, int(rd["speeds"][d] * random.uniform(0.2, 0.4)))
+                    elif ev_type in ["道路施工", "車輛故障"]:
+                        rd["speeds"][d] = max(15, int(rd["speeds"][d] * random.uniform(0.4, 0.6)))
+            
             events.append({
                 "road": rd["name"],
                 "type": ev_type,
-                "desc": f"【{rd['name']}】({direction}) 發生 {ev_type}：{descriptions[ev_type]}",
+                "desc": f"【{rd['name']}】({ev_dir}) 發生 {ev_type}：{descriptions[ev_type]}",
                 "severity": "high" if ev_type == "車禍事故" else "medium"
             })
 
@@ -1495,7 +1506,8 @@ def fetch_road_traffic_data(lat, lng, city_name):
     return {
         "status": "success",
         "roads": nearby_roads,
-        "events": events
+        "events": events,
+        "update_time": data_time_str
     }
 
 # ----------------- Mock Fallback Datasets -----------------
@@ -2100,6 +2112,10 @@ if traffic_data:
     if traffic_data.get("status") == "unavailable":
         st.warning(f"⚠️ 本路況查詢功能目前僅支援台北市區及鄰近國道路段。當前定位點（{city_name}）暫不支援。")
     else:
+        # Show update time and data limitation (every 5 minutes update)
+        up_time = traffic_data.get("update_time", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        st.markdown(f"<div style='font-size: 0.82rem; color: var(--text-color); opacity: 0.7; margin-top: -10px; margin-bottom: 12px;'>資料來源：台北市交通 VD 與國道即時資訊 (資料限制：每 5 分鐘更新一次) | <b>更新時間：{up_time}</b></div>", unsafe_allow_html=True)
+
         roads = traffic_data.get("roads", [])
         events = traffic_data.get("events", [])
         
@@ -2111,27 +2127,36 @@ if traffic_data:
             if roads:
                 road_cards_html = []
                 for rd in roads:
-                    speed = rd["speed"]
-                    if rd["type"] == "國道":
-                        if speed >= 80:
-                            color = "#00AA00"  # Smooth (green)
-                            status_lbl = "順暢"
-                        elif speed >= 60:
-                            color = "#FF8C00"  # Medium (orange)
-                            status_lbl = "車多"
+                    speeds_html = []
+                    for d, speed in rd["speeds"].items():
+                        if rd["type"] == "國道":
+                            if speed >= 80:
+                                color = "#00AA00"  # Smooth (green)
+                                status_lbl = "順暢"
+                            elif speed >= 60:
+                                color = "#FF8C00"  # Medium (orange)
+                                status_lbl = "車多"
+                            else:
+                                color = "#CC0000"  # Congested (red)
+                                status_lbl = "壅塞"
                         else:
-                            color = "#CC0000"  # Congested (red)
-                            status_lbl = "壅塞"
-                    else:
-                        if speed >= 40:
-                            color = "#00AA00"
-                            status_lbl = "順暢"
-                        elif speed >= 25:
-                            color = "#FF8C00"
-                            status_lbl = "車多"
-                        else:
-                            color = "#CC0000"
-                            status_lbl = "壅塞"
+                            if speed >= 40:
+                                color = "#00AA00"
+                                status_lbl = "順暢"
+                            elif speed >= 25:
+                                color = "#FF8C00"
+                                status_lbl = "車多"
+                            else:
+                                color = "#CC0000"
+                                status_lbl = "壅塞"
+                        
+                        speeds_html.append(f"""
+                        <div style="font-size: 0.85rem; line-height: 1.4;">
+                            <span style="font-weight: bold; color: var(--text-color); opacity: 0.8; margin-right: 4px;">{d}:</span>
+                            <span style="font-weight: 900; color: {color}; font-family: var(--font-header);">{speed}</span>
+                            <span style="font-size: 0.72rem; color: {color}; font-weight: bold;">km/h ({status_lbl})</span>
+                        </div>
+                        """)
                             
                     card_html = strip_html(f"""
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; margin-bottom: 8px; background-color: #FFFFFF; border: var(--border-style); border-radius: var(--radius); box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
@@ -2141,9 +2166,8 @@ if traffic_data:
                                 類型：{rd['type']} | 📍 距離約 {rd['distance_meter']} 公尺
                             </div>
                         </div>
-                        <div style="text-align: right;">
-                            <span style="font-size: 1.2rem; font-weight: 900; color: {color}; font-family: var(--font-header);">{speed}</span>
-                            <span style="font-size: 0.75rem; color: {color}; font-weight: bold; display: block; margin-top: -2px;">km/h ({status_lbl})</span>
+                        <div style="text-align: right; display: flex; flex-direction: column; gap: 4px;">
+                            {"".join(speeds_html)}
                         </div>
                     </div>
                     """)
