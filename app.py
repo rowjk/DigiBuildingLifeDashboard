@@ -50,8 +50,16 @@ st.markdown("""
         border-bottom: 4px double #111111 !important;
         padding-bottom: 12px !important;
         letter-spacing: -0.03em !important;
-        text-transform: uppercase;
-        font-size: 2.6rem !important;
+        line-height: 1.2 !important;
+    }
+    
+    h1 span.title-subtitle {
+        font-size: 80% !important; /* 縮小 20% */
+        display: block !important;
+        margin-top: 6px !important;
+        text-transform: uppercase !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.05em !important;
     }
 
     h2, h3, .stSubheader {
@@ -60,8 +68,8 @@ st.markdown("""
         color: #111111 !important;
         border-bottom: 1px solid #111111 !important;
         padding-bottom: 6px !important;
-        margin-top: 1.5rem !important;
-        margin-bottom: 1rem !important;
+        margin-top: 2rem !important;
+        margin-bottom: 1.2rem !important;
     }
 
     /* 刪除 Streamlit 預設元件的圓角與陰影 */
@@ -189,6 +197,101 @@ st.markdown("""
         border-radius: 0px !important;
         border: 1px solid #111111 !important;
         background-color: #F7F4EF !important;
+    }
+
+    /* 公告捲動容器與項目 */
+    .announcement-container {
+        max-height: 380px !important;
+        overflow-y: auto !important;
+        border: 1px solid #111111 !important;
+        padding: 12px !important;
+        background-color: transparent !important;
+        margin-bottom: 20px !important;
+    }
+    .announcement-card {
+        padding: 15px !important;
+        margin-bottom: 12px !important;
+        border: 1px solid #111111 !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.95rem !important;
+        line-height: 1.6 !important;
+    }
+    .announcement-card:last-child {
+        margin-bottom: 0px !important;
+    }
+    .announcement-card.urgent {
+        background-color: #FDF2F2 !important; /* 印章紅底色 */
+        color: #CC0000 !important;
+        border: 2px solid #CC0000 !important;
+    }
+    .announcement-card.normal {
+        background-color: transparent !important;
+        color: #111111 !important;
+    }
+    .announcement-header {
+        font-family: 'Fraunces', Georgia, serif !important;
+        font-weight: bold !important;
+        font-size: 1.05rem !important;
+        margin-bottom: 8px !important;
+        border-bottom: 1px dashed #111111;
+        padding-bottom: 4px;
+    }
+    .announcement-card.urgent .announcement-header {
+        border-bottom: 1px dashed #CC0000 !important;
+    }
+
+    /* 報紙表格樣式 */
+    .news-table-container {
+        max-height: 320px !important;
+        overflow-y: auto !important;
+        border: 1px solid #111111 !important;
+        margin-bottom: 20px !important;
+    }
+    .news-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.95rem !important;
+    }
+    .news-table th {
+        background-color: #F2EFE9 !important;
+        color: #111111 !important;
+        border-bottom: 2px solid #111111 !important;
+        padding: 10px !important;
+        font-family: 'Fraunces', Georgia, serif !important;
+        font-weight: 700 !important;
+        text-align: left !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 10 !important;
+    }
+    .news-table td {
+        padding: 10px !important;
+        border-bottom: 1px solid #111111 !important;
+        color: #111111 !important;
+    }
+    .news-table tr:last-child td {
+        border-bottom: none !important;
+    }
+    .news-table tbody tr:hover {
+        background-color: #F2EFE9 !important;
+    }
+
+    /* 自訂捲動軸樣式 */
+    ::-webkit-scrollbar {
+        width: 8px !important;
+        height: 8px !important;
+    }
+    ::-webkit-scrollbar-track {
+        background: #F7F4EF !important;
+        border-left: 1px solid #111111 !important;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #111111 !important;
+        border-radius: 0px !important;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #555555 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -553,7 +656,7 @@ if has_urgent_announcement:
 # Header Section
 col_header_left, col_header_right = st.columns([3, 1])
 with col_header_left:
-    st.title("🏢 統一數位大樓生活資訊平台 (Life Dashboard)")
+    st.markdown("<h1>🏢 統一數位大樓生活資訊平台<span class='title-subtitle'>(LIFE DASHBOARD)</span></h1>", unsafe_allow_html=True)
 with col_header_right:
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     st.write(f"**系統時間**：{now_str}")
@@ -562,81 +665,105 @@ with col_header_right:
 
 st.markdown("---")
 
-# Row 1: Weather (Left) & Announcements (Right)
-row1_left, row1_right = st.columns([1, 1])
+# Today's Weather Section
+st.subheader("☀️ 今日即時天氣 (內湖區)")
+st.markdown(f"""
+<div class="weather-card">
+    <div class="weather-title">台北市內湖區石潭路 155 號</div>
+    <div class="weather-temp">{weather['temp']}</div>
+    <div class="weather-details">
+        <b>天氣現象</b>：{weather['desc']}<br/>
+        <b>體感溫度</b>：{weather['apparent_temp']}<br/>
+        <b>降雨機率</b>：{weather['pop']}<br/>
+        <small style="opacity: 0.8;">更新時間：{weather['time']}</small>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-with row1_left:
-    st.subheader("☀️ 今日即時天氣 (內湖區)")
-    st.markdown(f"""
-    <div class="weather-card">
-        <div class="weather-title">台北市內湖區石潭路 155 號</div>
-        <div class="weather-temp">{weather['temp']}</div>
-        <div class="weather-details">
-            <b>天氣現象</b>：{weather['desc']}<br/>
-            <b>體感溫度</b>：{weather['apparent_temp']}<br/>
-            <b>降雨機率</b>：{weather['pop']}<br/>
-            <small style="opacity: 0.8;">更新時間：{weather['time']}</small>
+# Announcements Section (with Scrollbar)
+st.subheader("📢 最新與緊急公告區")
+if all_news:
+    ann_cards_html = []
+    for news in all_news:
+        card_class = "urgent" if news["is_urgent"] else "normal"
+        title_prefix = "🚨【緊急】" if news["is_urgent"] else "📌"
+        card_html = f"""
+        <div class="announcement-card {card_class}">
+            <div class="announcement-header">{title_prefix} {news['title']}</div>
+            <div style="font-size: 0.8rem; color: #555555; margin-bottom: 8px;">來源：{news['source']} | 發布時間：{news['created_at']}</div>
+            <div>{news['content']}</div>
         </div>
+        """
+        ann_cards_html.append(card_html)
+    
+    st.markdown(f"""
+    <div class="announcement-container">
+        {"".join(ann_cards_html)}
     </div>
     """, unsafe_allow_html=True)
+else:
+    st.write("目前無任何公告")
 
-with row1_right:
-    st.subheader("📢 最新與緊急公告區")
-    for news in all_news[:5]:
-        card_type = "st.error" if news["is_urgent"] else "st.info"
-        title_prefix = "🚨【緊急】" if news["is_urgent"] else "📌"
-        
-        with st.container():
-            if news["is_urgent"]:
-                st.error(f"**{title_prefix} {news['title']}** ({news['source']} - {news['created_at']})\n\n{news['content']}")
-            else:
-                st.info(f"**{title_prefix} {news['title']}** ({news['source']} - {news['created_at']})\n\n{news['content']}")
-
-st.markdown("---")
-
-# Row 2: YouBike (Left) & Bus Arrivals (Right)
-row2_left, row2_right = st.columns([1, 1])
-
-with row2_left:
-    st.subheader("🚲 YouBike 2.0 即時站點看板")
-    if youbike_list:
-        cols_yb = st.columns(min(len(youbike_list), 3))
-        for idx, yb in enumerate(youbike_list[:3]):
-            with cols_yb[idx]:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div style="font-weight: bold; font-size: 1rem; color: #0d6efd;">{yb['sna']}</div>
-                    <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                        <div>
-                            <span class="metric-label">可借車</span><br/>
-                            <span class="metric-value" style="color: #2e7d32;">{yb['sbi']}</span>
-                        </div>
-                        <div>
-                            <span class="metric-label">可還車</span><br/>
-                            <span class="metric-value" style="color: #c62828;">{yb['bemp']}</span>
-                        </div>
+# YouBike Section
+st.subheader("🚲 YouBike 2.0 即時站點看板")
+if youbike_list:
+    cols_yb = st.columns(min(len(youbike_list), 3))
+    for idx, yb in enumerate(youbike_list[:3]):
+        with cols_yb[idx]:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div style="font-weight: bold; font-size: 1rem; color: #111111; font-family: 'Fraunces', serif; border-bottom: 1px dashed #111111; padding-bottom: 5px; margin-bottom: 8px;">{yb['sna']}</div>
+                <div style="display: flex; justify-content: space-between; margin-top: 10px;">
+                    <div>
+                        <span class="metric-label">可借車</span><br/>
+                        <span class="metric-value" style="color: #111111;">{yb['sbi']}</span>
                     </div>
-                    <div style="font-size: 0.75rem; color: #6c757d; margin-top: 8px;">{yb['update_time']}</div>
+                    <div>
+                        <span class="metric-label">可還車</span><br/>
+                        <span class="metric-value" style="color: #555555;">{yb['bemp']}</span>
+                    </div>
                 </div>
-                """, unsafe_allow_html=True)
-    else:
-        st.write("目前無鄰近 YouBike 2.0 站點資料")
+                <div style="font-size: 0.75rem; color: #555555; margin-top: 8px;">更新：{yb['update_time']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+else:
+    st.write("目前無鄰近 YouBike 2.0 站點資料")
 
-with row2_right:
-    st.subheader("🚌 大台北公車即時到站動態")
-    if bus_list:
-        # Format list as a nice Pandas DataFrame for presentation
-        bus_df = pd.DataFrame(bus_list)
-        # Rename columns for layout
-        bus_df_show = bus_df.rename(columns={
-            "route": "路線",
-            "stop": "站牌名稱",
-            "go_back": "去返程",
-            "desc": "預估到站時間"
-        })[["路線", "站牌名稱", "去返程", "預估到站時間"]]
-        st.dataframe(bus_df_show, use_container_width=True, hide_index=True)
-    else:
-        st.write("目前無公車到站資訊")
+# Bus Arrivals Section (with Scrollbar)
+st.subheader("🚌 大台北公車即時到站動態")
+if bus_list:
+    bus_rows_html = []
+    for bus in bus_list:
+        time_style = "font-weight: bold; color: #CC0000;" if "即將到站" in bus['desc'] or "分鐘" in bus['desc'] and int(bus['raw_time']) <= 180 else "color: #111111;"
+        row_html = f"""
+        <tr>
+            <td style="font-weight: bold;">{bus['route']}</td>
+            <td>{bus['stop']}</td>
+            <td>{bus['go_back']}</td>
+            <td style="{time_style}">{bus['desc']}</td>
+        </tr>
+        """
+        bus_rows_html.append(row_html)
+        
+    st.markdown(f"""
+    <div class="news-table-container">
+        <table class="news-table">
+            <thead>
+                <tr>
+                    <th>路線</th>
+                    <th>站牌名稱</th>
+                    <th>去返程</th>
+                    <th>預估到站時間</th>
+                </tr>
+            </thead>
+            <tbody>
+                {"".join(bus_rows_html)}
+            </tbody>
+        </table>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    st.write("目前無公車到站資訊")
 
 st.markdown("---")
 
@@ -687,9 +814,23 @@ st.subheader("🗺️ 周邊生活機能地圖")
 # Embedded Google Maps iframe for 台北市內湖區石潭路155號
 iframe_src = "https://maps.google.com/maps?q=%E5%8F%B0%E5%8C%97%E5%B8%82%E5%85%A7%E6%B9%96%E5%8D%80%E7%9F%B3%E6%BD%AD%E8%B7%AF155%E8%99%9F&t=&z=16&ie=UTF8&iwloc=&output=embed"
 st.components.v1.html(
-    f'<iframe width="100%" height="450" frameborder="0" style="border:0; border-radius: 8px;" src="{iframe_src}" allowfullscreen></iframe>',
+    f'<iframe width="100%" height="450" frameborder="0" style="border:0;" src="{iframe_src}" allowfullscreen></iframe>',
     height=460
 )
+
+# Footer Section
+today_str = datetime.date.today().strftime("%Y-%m-%d")
+st.markdown(f"""
+<div style="border-top: 3px double #111111; padding-top: 20px; margin-top: 40px; padding-bottom: 20px; text-align: center; font-family: 'Inter', sans-serif; font-size: 0.85rem; color: #555555; line-height: 1.6;">
+    <div>© 2026 統一數位大樓生活資訊平台 (Life Dashboard) 版權所有</div>
+    <div>版本資訊：v1.2.0 | 更新日期：{today_str}</div>
+    <div style="margin-top: 6px; font-family: 'Fraunces', Georgia, serif; font-weight: 900; color: #111111; font-size: 0.95rem;">Powered with Gemini & Antigravity 2.0 By James wu</div>
+    <div style="margin-top: 10px;">
+        <a href="https://www.linkedin.com/in/james-wenkaiwu/" target="_blank" style="color: #111111; text-decoration: underline; margin-right: 15px; font-weight: bold;">LinkedIn</a>
+        <a href="https://github.com/rowjk" target="_blank" style="color: #111111; text-decoration: underline; font-weight: bold;">GitHub</a>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ----------------- Sidebar Admin Panel -----------------
 with st.sidebar:
