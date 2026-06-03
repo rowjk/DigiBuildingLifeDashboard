@@ -621,26 +621,20 @@ st.markdown(f"""
     }}
 
     /* 表格與 Dataframe 風格化 */
-    div[data-testid="stTable"], .element-container iframe {{
+    div[data-testid="stTable"] {{
         border: var(--border-style) !important;
         border-radius: var(--radius) !important;
     }}
 
-    /* 移除系統時間與倒數計時元件的黑框 */
-    .element-container iframe[srcdoc*="systime"] {{
-        border: none !important;
-        border-radius: 0px !important;
-    }}
-
-    /* 移除主題切換元件的邊框與底色 */
-    .element-container iframe[src*="buttons"],
-    .element-container iframe[title*="buttons"] {{
+    /* 預設移除所有 element-container iframe 的邊框與底色，防止雙重邊框或元件黑框 */
+    .element-container iframe {{
         border: none !important;
         border-radius: 0px !important;
         background: transparent !important;
         background-color: transparent !important;
         box-shadow: none !important;
     }}
+
 
     
     /* 側邊欄風格同步 */
@@ -2500,7 +2494,7 @@ st.subheader("＃ 周邊地圖")
 # Embedded Google Maps iframe linked with user_lat and user_lng from localization settings
 iframe_src = f"https://maps.google.com/maps?q={st.session_state['user_lat']},{st.session_state['user_lng']}&z=16&ie=UTF8&iwloc=&output=embed"
 st.components.v1.html(
-    f'<iframe width="100%" height="450" frameborder="0" style="border:0;" src="{iframe_src}" allowfullscreen></iframe>',
+    f'<iframe width="100%" height="450" style="border: {cfg["border-style"]}; border-radius: {cfg["radius"]};" src="{iframe_src}" allowfullscreen></iframe>',
     height=460
 )
 
