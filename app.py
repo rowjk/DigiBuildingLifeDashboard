@@ -25,46 +25,170 @@ st.set_page_config(
 # ----------------- CSS Custom Styling -----------------
 st.markdown("""
 <style>
+    /* 匯入襯線與無襯線 Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400&family=Inter:wght@400;500;600;700&display=swap');
+
+    /* 覆寫 Streamlit 全域底色與字體 */
+    .stApp {
+        background-color: #F7F4EF !important;
+        color: #111111 !important;
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+    
+    /* 調整主容器邊界 */
     .block-container {
-        padding-top: 1.5rem;
-        padding-bottom: 1.5rem;
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+        max-width: 1200px;
     }
+
+    /* 報紙標題樣式 */
+    h1 {
+        font-family: 'Fraunces', Georgia, serif !important;
+        font-weight: 900 !important;
+        color: #111111 !important;
+        border-bottom: 4px double #111111 !important;
+        padding-bottom: 12px !important;
+        letter-spacing: -0.03em !important;
+        text-transform: uppercase;
+        font-size: 2.6rem !important;
+    }
+
+    h2, h3, .stSubheader {
+        font-family: 'Fraunces', Georgia, serif !important;
+        font-weight: 700 !important;
+        color: #111111 !important;
+        border-bottom: 1px solid #111111 !important;
+        padding-bottom: 6px !important;
+        margin-top: 1.5rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    /* 刪除 Streamlit 預設元件的圓角與陰影 */
+    div[data-testid="stMetricValue"] {
+        font-family: 'Fraunces', Georgia, serif !important;
+        font-weight: 900 !important;
+        color: #111111 !important;
+    }
+    
+    /* YouBike 等資訊卡片：化身為報紙欄欄位 */
     .metric-card {
-        background-color: #f8f9fa;
-        border-radius: 8px;
-        padding: 15px;
-        border: 1px solid #dee2e6;
-        margin-bottom: 10px;
+        background-color: transparent !important;
+        border-radius: 0px !important; /* 強制直角 */
+        padding: 15px !important;
+        border: 1px solid #111111 !important; /* 墨黑單實線 */
+        margin-bottom: 15px !important;
     }
+    
     .metric-label {
-        font-size: 0.9rem;
-        color: #6c757d;
+        font-size: 0.85rem !important;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #555555 !important;
+        font-family: 'Inter', sans-serif;
     }
+    
     .metric-value {
-        font-size: 1.6rem;
-        font-weight: bold;
-        color: #212529;
+        font-size: 1.8rem !important;
+        font-family: 'Fraunces', Georgia, serif !important;
+        font-weight: 900 !important;
+        color: #111111 !important;
     }
+
+    /* 天氣卡片：由炫目漸層改為極簡新聞專欄風格 */
     .weather-card {
-        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-        color: white;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        background: transparent !important;
+        color: #111111 !important;
+        border-radius: 0px !important;
+        padding: 20px !important;
+        border: 2px solid #111111 !important; /* 粗實線強調主要專欄 */
+        margin-bottom: 20px !important;
+        box-shadow: none !important;
     }
+    
     .weather-title {
-        font-size: 1.2rem;
-        font-weight: bold;
+        font-family: 'Fraunces', Georgia, serif !important;
+        font-size: 1.1rem !important;
+        font-weight: bold !important;
+        border-bottom: 1px dashed #111111;
+        padding-bottom: 8px;
+        margin-bottom: 12px !important;
+    }
+    
+    .weather-temp {
+        font-family: 'Fraunces', Georgia, serif !important;
+        font-size: 3rem !important;
+        font-weight: 900 !important;
+        line-height: 1 !important;
         margin-bottom: 10px;
     }
-    .weather-temp {
-        font-size: 2.5rem;
-        font-weight: bold;
-    }
+    
     .weather-details {
-        font-size: 0.95rem;
-        margin-top: 5px;
+        font-size: 0.95rem !important;
+        line-height: 1.6 !important;
+    }
+
+    /* 調整警告橫幅 (st.warning / st.error) 符合報紙社論插頁風格 */
+    .stAlert {
+        border-radius: 0px !important;
+        border: 1px solid #111111 !important;
+        background-color: #FDF2F2 !important; /* 淡紅紙底 */
+        color: #CC0000 !important;
+    }
+
+    /* 表格與 Dataframe 風格化 */
+    div[data-testid="stTable"], .element-container iframe {
+        border: 1px solid #111111 !important;
+        border-radius: 0px !important;
+    }
+    
+    /* 側邊欄風格同步 */
+    section[data-testid="stSidebar"] {
+        background-color: #F2EFE9 !important; /* 稍微深一點的新聞紙色做區隔 */
+        border-right: 1px solid #111111 !important;
+    }
+    
+    /* 自訂雙線條 */
+    hr {
+        border: none !important;
+        border-top: 3px double #111111 !important;
+        opacity: 1 !important;
+        margin: 1.5rem 0 !important;
+    }
+
+    /* Streamlit 按鈕新聞紙風格 */
+    div.stButton > button {
+        font-family: 'Fraunces', Georgia, serif !important;
+        font-weight: 700 !important;
+        background-color: transparent !important;
+        color: #111111 !important;
+        border: 2px solid #111111 !important;
+        padding: 8px 16px !important;
+        border-radius: 0px !important; /* 強制直角 */
+        transition: all 0.1s ease !important; /* 快速硬切換 */
+    }
+    div.stButton > button:hover {
+        background-color: #111111 !important;
+        color: #F7F4EF !important; /* 反白效果 */
+        border: 2px solid #111111 !important;
+    }
+    div.stButton > button:active {
+        background-color: #111111 !important;
+        color: #F7F4EF !important;
+    }
+
+    /* Streamlit 輸入框與選單新聞紙風格 */
+    div[data-testid="stTextInput"] input, div[data-testid="stSelectbox"] select, div[data-testid="stSelectbox"] div[role="button"] {
+        border-radius: 0px !important;
+        border: 1px solid #111111 !important;
+        background-color: #F7F4EF !important;
+        color: #111111 !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    div[data-baseweb="select"] {
+        border-radius: 0px !important;
+        border: 1px solid #111111 !important;
+        background-color: #F7F4EF !important;
     }
 </style>
 """, unsafe_allow_html=True)
