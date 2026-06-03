@@ -1887,25 +1887,25 @@ with col_theme1:
         key="theme_switcher_main"
     )
 
-# ----------------- Positioning System UI -----------------
 st.subheader("＃ 平台中心定位設定")
-col_pos_mode, col_pos_val = st.columns([1, 2])
+col_pos1, col_pos2 = st.columns([1, 1])
 
-with col_pos_mode:
-    pos_mode = sac.segmented(
+with col_pos1:
+    pos_mode = sac.buttons(
         items=[
-            sac.SegmentedItem(label="📍 常用地標", icon="geo-alt"),
-            sac.SegmentedItem(label="🔍 地址搜尋", icon="search"),
-            sac.SegmentedItem(label="🛰️ GPS 定位", icon="radar")
+            sac.ButtonsItem(label="常用地標"),
+            sac.ButtonsItem(label="地址搜尋"),
+            sac.ButtonsItem(label="GPS 定位")
         ],
-        align="left",
+        direction="horizontal",
+        use_container_width=True,
+        variant="filled",
         color="dark",
         size="sm",
         key="pos_mode_selector"
     )
 
-with col_pos_val:
-    if pos_mode == "📍 常用地標":
+    if pos_mode == "常用地標":
         landmark_list = list(predefined_landmarks.keys())
         default_idx = 0
         if st.session_state["loc_name"] in landmark_list:
@@ -1916,7 +1916,7 @@ with col_pos_val:
             st.session_state["loc_name"] = selected_landmark
             st.rerun()
             
-    elif pos_mode == "🔍 地址搜尋":
+    elif pos_mode == "地址搜尋":
         with st.form("search_form", clear_on_submit=False):
             col_search_input, col_search_btn = st.columns([3, 1])
             with col_search_input:
@@ -1934,7 +1934,7 @@ with col_pos_val:
                 else:
                     st.error("找不到該位置，請確認拼字或改用其他關鍵字。")
                 
-    elif pos_mode == "🛰️ GPS 定位":
+    elif pos_mode == "GPS 定位":
         st.write("📡 正在向瀏覽器要求 GPS 權限...")
         loc_data = get_geolocation()
         if loc_data:
@@ -1948,6 +1948,7 @@ with col_pos_val:
                     st.session_state["user_lng"] = lng_gps
                     st.session_state["loc_name"] = "瀏覽器 GPS 定位"
                     st.rerun()
+
         else:
             st.info("請在瀏覽器彈出視窗中允許位置存取權限。")
 
