@@ -1775,41 +1775,113 @@ col_header_left, col_header_right = st.columns([3, 1])
 with col_header_left:
     st.markdown("<h1 style='margin:0;'>統一數位大樓生活資訊平台<span class='title-subtitle'>(LIFE DASHBOARD)</span></h1>", unsafe_allow_html=True)
 with col_header_right:
-    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    st.markdown(strip_html(f"""
-    <div style="text-align: right; font-family: 'Inter', sans-serif; font-size: 0.9rem; color: #555555; line-height: 1.6; margin-top: 8px; margin-bottom: 8px;">
-        <b>系統時間</b>：{now_str}<br/>
-        ⏱️ 網頁每 300 秒自動重新載入 (<span id="countdown">{remaining_seconds}</span>)
-    </div>
-    <div style="text-align: right; margin-top: 6px;">
-        <a href="?refresh=1" target="_self" class="refresh-btn">
-            <img src="data:image/png;base64,{update_btn_base64}" alt="資料更新" />
-        </a>
-    </div>
-    """), unsafe_allow_html=True)
+    tz_utc8 = datetime.timezone(datetime.timedelta(hours=8))
+    now_dt = datetime.datetime.now(tz_utc8)
+    now_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+    now_str_js = now_dt.strftime("%Y-%m-%dT%H:%M:%S+08:00")
 
-    st.markdown(f"""
-    <script>
-        (function() {{
-            let timeLeft = {remaining_seconds};
-            const countdownEl = document.getElementById('countdown');
-            if (countdownEl) {{
-                if (window.countdownIntervalId) {{
-                    clearInterval(window.countdownIntervalId);
+    header_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+                background: transparent;
+            }}
+            .container {{
+                text-align: right;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                font-size: 0.9rem;
+                color: #555555;
+                line-height: 1.6;
+            }}
+            .refresh-btn img {{
+                width: 50px;
+                height: 50px;
+                cursor: pointer;
+                border: 2px solid {cfg['border-color']};
+                background-color: {cfg['card-bg']};
+                padding: 4px;
+                transition: all 0.1s ease;
+                box-shadow: {cfg['box-shadow']};
+                border-radius: {cfg['radius']};
+            }}
+            .refresh-btn img:hover {{
+                transform: scale(1.1);
+                background-color: {cfg['text-color']};
+                border-color: {cfg['text-color']};
+                filter: invert(1) !important;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <b>系統時間</b>：<span id="systime">{now_str}</span><br/>
+            ⏱️ 網頁每 300 秒自動重新載入 (<span id="countdown">{remaining_seconds}</span>)
+            <div style="text-align: right; margin-top: 6px;">
+                <a href="?refresh=1" target="_parent" class="refresh-btn">
+                    <img src="data:image/png;base64,{update_btn_base64}" alt="資料更新" />
+                </a>
+            </div>
+        </div>
+        <script>
+            (function() {{
+                const timeEl = document.getElementById('systime');
+                const countdownEl = document.getElementById('countdown');
+                
+                const formatter = new Intl.DateTimeFormat('zh-TW', {{
+                    timeZone: 'Asia/Taipei',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                }});
+                
+                function formatTaipei(date) {{
+                    const parts = formatter.formatToParts(date);
+                    const hash = {{}};
+                    for (const part of parts) {{
+                        hash[part.type] = part.value;
+                    }}
+                    return `${{hash.year}}-${{hash.month}}-${{hash.day}} ${{hash.hour}}:${{hash.minute}}:${{hash.second}}`;
                 }}
-                window.countdownIntervalId = setInterval(() => {{
-                    timeLeft--;
-                    if (timeLeft <= 0) {{
-                        clearInterval(window.countdownIntervalId);
-                        countdownEl.textContent = '0';
-                    }} else {{
-                        countdownEl.textContent = timeLeft;
+
+                // 1. Ticking System Time (in Taipei timezone)
+                let currentServerTime = new Date("{now_str_js}");
+                setInterval(() => {{
+                    currentServerTime.setSeconds(currentServerTime.getSeconds() + 1);
+                    if (timeEl) {{
+                        timeEl.textContent = formatTaipei(currentServerTime);
                     }}
                 }}, 1000);
-            }}
-        }})();
-    </script>
-    """, unsafe_allow_html=True)
+
+                // 2. Countdown Timer
+                let timeLeft = {remaining_seconds};
+                if (countdownEl) {{
+                    const timer = setInterval(() => {{
+                        timeLeft--;
+                        if (timeLeft <= 0) {{
+                            clearInterval(timer);
+                            countdownEl.textContent = '0';
+                        }} else {{
+                            countdownEl.textContent = timeLeft;
+                        }}
+                    }}, 1000);
+                }}
+            }})();
+        </script>
+    </body>
+    </html>
+    """
+    st.components.v1.html(header_html, height=115)
+
 
 
 st.markdown("---")
