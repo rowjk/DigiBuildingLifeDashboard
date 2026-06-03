@@ -2265,7 +2265,7 @@ st.subheader("＃ 美食推薦 Top 10")
 
 has_places_key = bool(os.getenv("GOOGLE_PLACES_API_KEY"))
 if not has_places_key:
-    st.info("💡 若設定 `.env` 中的 `GOOGLE_PLACES_API_KEY`，展開餐廳可查看 Google 即時評論與營業時間。")
+    st.info("💡 若設定 `.env` 或 Streamlit Secrets 中的 `GOOGLE_PLACES_API_KEY`，展開餐廳可查看 Google 即時評論與營業時間。")
 
 # Category Filters
 category_options = ["全部", "便當", "麵食", "日式", "韓式", "美式", "健康餐"]
