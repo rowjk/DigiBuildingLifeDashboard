@@ -20,8 +20,8 @@ import base64
 back_to_top_base64 = ""
 update_btn_base64 = ""
 try:
-    if os.path.exists("BackToTop.png"):
-        with open("BackToTop.png", "rb") as img_file:
+    if os.path.exists("BackToTop_2.png"):
+        with open("BackToTop_2.png", "rb") as img_file:
             back_to_top_base64 = base64.b64encode(img_file.read()).decode("utf-8")
     if os.path.exists("UPDATE.png"):
         with open("UPDATE.png", "rb") as img_file:
