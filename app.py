@@ -1877,8 +1877,6 @@ with col_header_right:
 
 
 
-st.markdown("---")
-
 # ----------------- Theme Switcher UI -----------------
 col_theme1, col_theme2 = st.columns([1, 1])
 with col_theme1:
@@ -1895,6 +1893,8 @@ with col_theme1:
         size="sm",
         key="theme_switcher_main"
     )
+
+st.markdown("---")
 
 st.subheader("＃ 平台中心定位設定")
 col_pos1, col_pos2 = st.columns([1, 1])

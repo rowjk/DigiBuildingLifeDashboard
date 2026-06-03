@@ -155,6 +155,8 @@
    * **限制自訂元件高度**：由於 Streamlit 自訂第三方元件 (`streamlit-antd-components`) 預設 iframe 高度較高，會在按鈕下方產生大量無意義的空白行。我們擴充了 CSS 樣式選擇器，將所有 `streamlit_antd_components` 與 `buttons` 的 iframe 高度精準限制在 `42px !important`，確保按鈕下方完全貼合。
    * **縮小分欄與分隔線間距**：調整了橫向分隔線 (`hr`) 的 margins，將其下方的 bottom margin 從 `1.5rem` 大幅降低至 `0.5rem`，立即可視化縮減了橫線與下方按鈕元件之間的間距。
    * **收緊全站標題間距**：將全站子標題 (`st.subheader` 如 `＃ 平台中心定位設定` 等) 的 `margin-top` 從 `2rem` 縮減為 `1.2rem`，`margin-bottom` 縮減為 `0.8rem`，使整體上下板塊更加緊湊、閱讀體驗更加流暢。
+3. **按鈕位置調整**：
+   * 依照您的指示，已將主題風格切換的按鈕移至橫向分隔線的上方，使其視覺層級更合理，與下方的定位設定做更清晰的區隔。
 
 ---
 
