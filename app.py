@@ -1440,6 +1440,15 @@ def fetch_road_traffic_data(lat, lng, city_name):
             cp_copy["distance_meter"] = int(dist)
             nearby_roads.append(cp_copy)
 
+    # Fallback: expand to 10.0 km if no checkpoints are found within 5.0 km
+    if not nearby_roads:
+        for cp in checkpoints:
+            dist = haversine_distance(lat, lng, cp["coords"][0], cp["coords"][1])
+            if dist <= 10000.0:
+                cp_copy = dict(cp)
+                cp_copy["distance_meter"] = int(dist)
+                nearby_roads.append(cp_copy)
+
     # Sort by distance and limit to top 6 closest
     nearby_roads.sort(key=lambda x: x["distance_meter"])
     nearby_roads = nearby_roads[:6]
@@ -1763,21 +1772,22 @@ with col_pos_val:
             st.rerun()
             
     elif pos_mode == "🔍 地址搜尋":
-        col_search_input, col_search_btn = st.columns([3, 1])
-        with col_search_input:
-            search_query = st.text_input("輸入地址或地名 (例如: 內湖大潤發)", value="", placeholder="輸入地標...", key="addr_search_query")
-        with col_search_btn:
-            st.write("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-            run_search = st.button("搜尋", key="run_search_btn")
-            
-        if run_search and search_query:
-            coords = google_geocode_or_search(search_query)
-            if coords:
-                st.session_state["user_lat"], st.session_state["user_lng"] = coords
-                st.session_state["loc_name"] = f"搜尋: {search_query}"
-                st.rerun()
-            else:
-                st.error("找不到該位置，請確認拼字或改用其他關鍵字。")
+        with st.form("search_form", clear_on_submit=False):
+            col_search_input, col_search_btn = st.columns([3, 1])
+            with col_search_input:
+                search_query = st.text_input("輸入地址或地名 (例如: 內湖大潤發)", value="", placeholder="輸入地標...", key="addr_search_query")
+            with col_search_btn:
+                st.write("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                run_search = st.form_submit_button("搜尋")
+                
+            if run_search and search_query:
+                coords = google_geocode_or_search(search_query)
+                if coords:
+                    st.session_state["user_lat"], st.session_state["user_lng"] = coords
+                    st.session_state["loc_name"] = f"搜尋: {search_query}"
+                    st.rerun()
+                else:
+                    st.error("找不到該位置，請確認拼字或改用其他關鍵字。")
                 
     elif pos_mode == "🛰️ GPS 定位":
         st.write("📡 正在向瀏覽器要求 GPS 權限...")
@@ -2114,7 +2124,7 @@ if traffic_data:
     else:
         # Show update time and data limitation (every 5 minutes update)
         up_time = traffic_data.get("update_time", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        st.markdown(f"<div style='font-size: 0.82rem; color: var(--text-color); opacity: 0.7; margin-top: -10px; margin-bottom: 12px;'>資料來源：台北市交通 VD 與國道即時資訊 (資料限制：每 5 分鐘更新一次) | <b>更新時間：{up_time}</b></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size: 0.82rem; color: var(--text-color); opacity: 0.7; margin-top: -10px; margin-bottom: 12px;'>定位點：{st.session_state['loc_name']} ({display_district}) | 資料來源：台北市交通 VD 與國道即時資訊 (資料限制：每 5 分鐘更新一次) | <b>更新時間：{up_time}</b></div>", unsafe_allow_html=True)
 
         roads = traffic_data.get("roads", [])
         events = traffic_data.get("events", [])
