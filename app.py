@@ -562,7 +562,7 @@ st.markdown(f"""
     .news-table td {{
         padding: 10px !important;
         border-bottom: 1px solid var(--border-color) !important;
-        color: var(--text-color) !important;
+        color: var(--text-color);
     }}
     .news-table tr:last-child td {{
         border-bottom: none !important;
