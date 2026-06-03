@@ -367,11 +367,11 @@ st.markdown(f"""
     
     /* YouBike 等資訊卡片：化身為報紙欄欄位 */
     .metric-card {{
-        background-color: var(--card-bg) !important;
+        background-color: #FFFFFF !important;
         border-radius: var(--radius) !important;
         padding: 15px !important;
         border: var(--border-style) !important;
-        box-shadow: var(--box-shadow) !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.10) !important;
         margin-bottom: 15px !important;
     }}
     
@@ -391,14 +391,14 @@ st.markdown(f"""
         color: var(--metric-value-color);
     }}
 
-    /* 天氣卡片：由炫目漸層改為極簡新聞專欄風格 */
+    /* 天氣卡片：白色底色 */
     .weather-card {{
-        background: var(--card-bg) !important;
+        background: #FFFFFF !important;
         color: var(--text-color) !important;
         border-radius: var(--radius) !important;
         padding: 20px !important;
         border: var(--border-style) !important;
-        box-shadow: var(--box-shadow) !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.10) !important;
         margin-bottom: 20px !important;
     }}
     
@@ -537,6 +537,8 @@ st.markdown(f"""
         border: var(--border-style) !important;
         border-radius: var(--radius) !important;
         margin-bottom: 20px !important;
+        background-color: #FFFFFF !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.10) !important;
     }}
     .news-table {{
         width: 100% !important;
@@ -662,20 +664,22 @@ st.markdown(f"""
         border-radius: var(--radius) !important;
     }}
     
-    /* Streamlit 摺疊面板樣式調整 */
+    /* Streamlit 摺疊面板：統一白色底色，清楚區隔背景 */
     .streamlit-expanderHeader {{
-        background-color: var(--card-bg) !important;
+        background-color: #FFFFFF !important;
         color: var(--text-color) !important;
         border: var(--border-style) !important;
         border-radius: var(--radius) !important;
         font-family: var(--font-header) !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
     }}
     .streamlit-expanderContent {{
-        background-color: var(--card-bg) !important;
+        background-color: #FFFFFF !important;
         color: var(--text-color) !important;
         border: var(--border-style) !important;
         border-top: none !important;
         border-radius: 0 0 var(--radius) var(--radius) !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
     }}
 </style>
 """, unsafe_allow_html=True)
