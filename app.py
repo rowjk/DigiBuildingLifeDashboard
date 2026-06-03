@@ -320,21 +320,8 @@ st.set_page_config(
 # Top Anchor for Back to Top Button
 st.markdown("<div id='linkto_top'></div>", unsafe_allow_html=True)
 
-# ----------------- Theme Switcher configuration -----------------
-with st.sidebar:
-    st.markdown("### 🎨 主題風格切換")
-    selected_theme = sac.buttons(
-        items=[
-            sac.ButtonsItem(label="新聞紙經典"),
-            sac.ButtonsItem(label="北歐極簡"),
-            sac.ButtonsItem(label="暖陽沙黃")
-        ],
-        direction="vertical",
-        use_container_width=True,
-        variant="filled",
-        color="dark",
-        size="sm"
-    )
+# Read selected theme from session state (since the widget is rendered below)
+selected_theme = st.session_state.get("theme_switcher_main", "新聞紙經典")
 
 
 # Map selected theme to CSS Variables
@@ -1876,6 +1863,22 @@ with col_header_right:
 
 
 st.markdown("---")
+
+# ----------------- Theme Switcher UI -----------------
+st.markdown("<div style='font-weight: bold; margin-bottom: 4px; font-size: 0.95rem;'>🎨 主題風格切換</div>", unsafe_allow_html=True)
+selected_theme_val = sac.buttons(
+    items=[
+        sac.ButtonsItem(label="新聞紙經典"),
+        sac.ButtonsItem(label="北歐極簡"),
+        sac.ButtonsItem(label="暖陽沙黃")
+    ],
+    direction="horizontal",
+    align="start",
+    variant="filled",
+    color="dark",
+    size="sm",
+    key="theme_switcher_main"
+)
 
 # ----------------- Positioning System UI -----------------
 st.subheader("＃ 平台中心定位設定")
