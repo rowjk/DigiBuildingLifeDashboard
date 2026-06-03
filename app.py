@@ -13,12 +13,16 @@ from sqlalchemy.orm import Session
 from database import get_session, Announcement, Restaurant, AdminUser, hash_password
 import base64
 
-# Base64 encode BackToTop.png for floating button
+# Base64 encode images for floating button and manual refresh button
 back_to_top_base64 = ""
+update_btn_base64 = ""
 try:
     if os.path.exists("BackToTop.png"):
         with open("BackToTop.png", "rb") as img_file:
             back_to_top_base64 = base64.b64encode(img_file.read()).decode("utf-8")
+    if os.path.exists("UPDATE.png"):
+        with open("UPDATE.png", "rb") as img_file:
+            update_btn_base64 = base64.b64encode(img_file.read()).decode("utf-8")
 except Exception:
     pass
 
@@ -342,12 +346,42 @@ st.markdown("""
         border-color: #111111;
         filter: invert(1) !important;
     }
+
+    /* 資料更新按鈕 */
+    .refresh-btn img {
+        width: 36px;
+        height: 36px;
+        cursor: pointer;
+        border: 2px solid #111111;
+        background-color: #F7F4EF;
+        padding: 4px;
+        transition: all 0.1s ease;
+        box-shadow: 2px 2px 0px #111111;
+    }
+    .refresh-btn img:hover {
+        transform: scale(1.1);
+        background-color: #111111;
+        border-color: #111111;
+        filter: invert(1) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # ----------------- Time-based Auto-Refresh -----------------
 # Trigger refresh every 60 seconds
 count = st_autorefresh(interval=60000, key="dashboard_refresher")
+
+# ----------------- Manual Refresh Query Param Handler -----------------
+if "refresh" in st.query_params:
+    st.query_params.clear()
+    try:
+        fetch_weather.clear()
+        fetch_taipei_gov_announcements.clear()
+        fetch_youbike_data.clear()
+        fetch_bus_arrivals.clear()
+    except Exception:
+        pass
+    st.rerun()
 
 # ----------------- Global Memory Cache Helper Functions -----------------
 
@@ -713,18 +747,12 @@ with col_header_right:
         <b>系統時間</b>：{now_str}<br/>
         ⏱️ 網頁每 60 秒自動重新載入 ({count})
     </div>
+    <div style="text-align: right; margin-top: 6px;">
+        <a href="?refresh=1" target="_self" class="refresh-btn">
+            <img src="data:image/png;base64,{update_btn_base64}" alt="資料更新" />
+        </a>
+    </div>
     """), unsafe_allow_html=True)
-    btn_cols = st.columns([2, 1.2])
-    with btn_cols[1]:
-        if st.button("資料更新", key="btn_refresh"):
-            try:
-                fetch_weather.clear()
-                fetch_taipei_gov_announcements.clear()
-                fetch_youbike_data.clear()
-                fetch_bus_arrivals.clear()
-            except Exception:
-                pass
-            st.rerun()
 
 st.markdown("---")
 
