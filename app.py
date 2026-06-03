@@ -756,15 +756,42 @@ with col_header_right:
 
 st.markdown("---")
 
+# Parse temperature values for visual threshold highlighting
+temp_class = ""
+apparent_temp_class = ""
+if weather:
+    def parse_temp_num(t_str):
+        try:
+            clean_str = "".join(c for c in str(t_str) if c.isdigit() or c in ['.', '-'])
+            return float(clean_str) if clean_str else None
+        except Exception:
+            return None
+
+    def get_temp_class(val):
+        if val is None:
+            return ""
+        if val >= 30:
+            return "text-red"
+        elif val < 20:
+            return "text-blue"
+        else:
+            return "text-green"
+
+    temp_val = parse_temp_num(weather.get('temp'))
+    apparent_temp_val = parse_temp_num(weather.get('apparent_temp'))
+    
+    temp_class = get_temp_class(temp_val)
+    apparent_temp_class = get_temp_class(apparent_temp_val)
+
 # Today's Weather Section
 st.subheader("☀️ 今日即時天氣 (內湖區)")
 st.markdown(strip_html(f"""
 <div class="weather-card">
     <div class="weather-title">台北市內湖區石潭路 155 號</div>
-    <div class="weather-temp">{weather['temp']}</div>
+    <div class="weather-temp {temp_class}">{weather['temp']}</div>
     <div class="weather-details">
         <b>天氣現象</b>：{weather['desc']}<br/>
-        <b>體感溫度</b>：{weather['apparent_temp']}<br/>
+        <b>體感溫度</b>：<span class="{apparent_temp_class}">{weather['apparent_temp']}</span><br/>
         <b>降雨機率</b>：{weather['pop']}<br/>
         <small style="opacity: 0.8;">更新時間：{weather['time']}</small>
     </div>
