@@ -325,10 +325,9 @@ with st.sidebar:
     st.markdown("### 🎨 主題風格切換")
     selected_theme = sac.segmented(
         items=[
-            sac.SegmentedItem(label="📰 新聞紙經典", icon="newspaper"),
-            sac.SegmentedItem(label="🌙 優雅深色", icon="moon-stars"),
-            sac.SegmentedItem(label="🌲 北歐極簡", icon="tree"),
-            sac.SegmentedItem(label="⏳ 暖陽沙黃", icon="sun")
+            sac.SegmentedItem(label="新聞紙經典"),
+            sac.SegmentedItem(label="北歐極簡"),
+            sac.SegmentedItem(label="暖陽沙黃")
         ],
         align="center",
         color="dark",
@@ -337,7 +336,7 @@ with st.sidebar:
 
 # Map selected theme to CSS Variables
 theme_vars = {
-    "📰 新聞紙經典": {
+    "新聞紙經典": {
         "bg-color": "#F7F4EF",
         "text-color": "#111111",
         "border-color": "#111111",
@@ -354,24 +353,7 @@ theme_vars = {
         "metric-value-color": "#111111",
         "scrollbar-thumb": "#111111"
     },
-    "🌙 優雅深色": {
-        "bg-color": "#0F172A",
-        "text-color": "#F8FAFC",
-        "border-color": "#334155",
-        "card-bg": "#1E293B",
-        "accent-color": "#38BDF8",
-        "font-header": "'Inter', system-ui, sans-serif",
-        "font-body": "'Inter', system-ui, sans-serif",
-        "radius": "8px",
-        "border-style": "1px solid var(--border-color)",
-        "hr-style": "1px solid var(--border-color)",
-        "box-shadow": "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)",
-        "alert-bg": "#311C1C",
-        "alert-border": "#EF4444",
-        "metric-value-color": "#38BDF8",
-        "scrollbar-thumb": "#475569"
-    },
-    "🌲 北歐極簡": {
+    "北歐極簡": {
         "bg-color": "#ECEFF4",
         "text-color": "#2E3440",
         "border-color": "#D8DEE9",
@@ -388,7 +370,7 @@ theme_vars = {
         "metric-value-color": "#5E81AC",
         "scrollbar-thumb": "#D8DEE9"
     },
-    "⏳ 暖陽沙黃": {
+    "暖陽沙黃": {
         "bg-color": "#F5F2EB",
         "text-color": "#3C2F2F",
         "border-color": "#E6DFD3",
@@ -407,8 +389,8 @@ theme_vars = {
     }
 }
 
-selected_theme = selected_theme or "📰 新聞紙經典"
-cfg = theme_vars.get(selected_theme, theme_vars["📰 新聞紙經典"])
+selected_theme = selected_theme or "新聞紙經典"
+cfg = theme_vars.get(selected_theme, theme_vars["新聞紙經典"])
 
 # ----------------- CSS Custom Styling -----------------
 st.markdown(f"""
@@ -652,6 +634,12 @@ st.markdown(f"""
     div[data-testid="stTable"], .element-container iframe {{
         border: var(--border-style) !important;
         border-radius: var(--radius) !important;
+    }}
+
+    /* 移除系統時間與倒數計時元件的黑框 */
+    .element-container iframe[srcdoc*="systime"] {{
+        border: none !important;
+        border-radius: 0px !important;
     }}
     
     /* 側邊欄風格同步 */
@@ -2503,7 +2491,7 @@ st.markdown(strip_html(f"""
 <div style="border-top: 3px double #111111; padding-top: 20px; margin-top: 40px; padding-bottom: 20px; text-align: center; font-family: 'Inter', sans-serif; font-size: 0.85rem; color: #555555; line-height: 1.6;">
     <div>© 2026 統一數位大樓生活資訊平台 (Life Dashboard) 版權所有</div>
     <div>版本資訊：v1.2.0 | 更新日期：{today_str}</div>
-    <div style="margin-top: 6px; font-family: 'Fraunces', Georgia, serif; font-weight: 900; color: #111111; font-size: 0.95rem;">Powered with Gemini & Antigravity 2.0 By James wu</div>
+    <div style="margin-top: 6px; font-family: 'Fraunces', Georgia, serif; font-weight: 900; color: #111111; font-size: 0.95rem;">Powered with Antigravity 2.0 By James Wu</div>
     <div style="margin-top: 10px;">
         <a href="https://www.linkedin.com/in/james-wenkaiwu/" target="_blank" style="color: #111111; text-decoration: underline; margin-right: 15px; font-weight: bold;">LinkedIn</a>
         <a href="https://github.com/rowjk" target="_blank" style="color: #111111; text-decoration: underline; font-weight: bold;">GitHub</a>
