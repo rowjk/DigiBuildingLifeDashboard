@@ -212,7 +212,6 @@ with st.sidebar:
             sac.SegmentedItem(label="⏳ 暖陽沙黃", icon="sun")
         ],
         align="center",
-        grow=True,
         color="dark",
         size="sm"
     )
@@ -1353,27 +1352,38 @@ else:
 # Bus Arrivals Section (with Scrollbar)
 st.subheader(f"🚌 大台北公車即時到站動態（鄰近 {st.session_state['loc_name'][:10]}... 站牌）")
 if bus_list:
+    # 排序：先依預估到站時間（raw_time）最小，再依路線編號
+    def bus_sort_key(b):
+        try:
+            route_num = int("".join(filter(str.isdigit, str(b['route']))) or "9999")
+        except Exception:
+            route_num = 9999
+        return (b.get('raw_time', 9999), route_num)
+
+    sorted_bus_list = sorted(bus_list, key=bus_sort_key)
+
     bus_rows_html = []
-    for bus in bus_list:
-        # Determine base color class by direction
-        row_color_class = "text-blue" if bus['go_back'] == "去程" else "text-green"
-        
-        # Check if estimate time is <= 2 minutes (120 seconds) or "即將到站"
-        is_near = (0 <= bus['raw_time'] <= 120) or (bus['desc'] == "即將到站")
-        time_color_class = "text-red font-bold" if is_near else row_color_class
+    for bus in sorted_bus_list:
+        # 去程 → #0000AA；返程 → #00AA00
+        row_color = "#0000AA" if bus['go_back'] == "去程" else "#00AA00"
+
+        # 預估到站時間 ≤ 2 分鐘（120秒）或「即將到站」→ #CC0000
+        is_near = (0 <= bus.get('raw_time', 9999) <= 120) or (bus['desc'] == "即將到站")
+        time_color = "#CC0000" if is_near else row_color
+
         dist_m = bus.get('distance_meter', '')
         dist_label = f"{dist_m}m" if isinstance(dist_m, int) else ""
-        
+
         row_html = strip_html(f"""
         <tr>
-            <td class="font-bold {row_color_class}">{bus['route']}</td>
-            <td class="{row_color_class}">{bus['stop']}<br/><small style="opacity:0.65;">{dist_label}</small></td>
-            <td class="{row_color_class}">{bus['go_back']}</td>
-            <td class="{time_color_class}">{bus['desc']}</td>
+            <td style="color:{row_color}; font-weight:bold;">{bus['route']}</td>
+            <td style="color:{row_color};">{bus['stop']}<br/><small style="opacity:0.65;">{dist_label}</small></td>
+            <td style="color:{row_color};">{bus['go_back']}</td>
+            <td style="color:{time_color}; {'font-weight:bold;' if is_near else ''}">{bus['desc']}</td>
         </tr>
         """)
         bus_rows_html.append(row_html)
-        
+
     st.markdown(strip_html(f"""
     <div class="news-table-container">
         <table class="news-table">
