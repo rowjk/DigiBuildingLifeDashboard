@@ -13,7 +13,9 @@ from streamlit_js_eval import get_geolocation
 from streamlit_autorefresh import st_autorefresh
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
-from database import get_session, Announcement, Restaurant, AdminUser, hash_password
+from database import get_session, Announcement, Restaurant, AdminUser, Landmark, SystemConfig
+import html
+import pyotp
 import base64
 
 # Automatically initialize SQLite database if it does not exist
@@ -312,7 +314,7 @@ def fetch_dynamic_restaurants(lat, lng, category="全部"):
 load_dotenv()
 
 # ----------------- App Version and Release Metadata -----------------
-APP_VERSION = "v1.3.1"
+APP_VERSION = "v1.4.0"
 APP_UPDATE_DATE = "2026-06-04"
 
 # Set page configuration
@@ -911,6 +913,25 @@ st.markdown(f"""
         border-top: 1px solid var(--border-color) !important;
         border-radius: 0 0 var(--radius) var(--radius) !important;
     }}
+
+    .riding-bike-js {{
+        position: absolute;
+        bottom: -22px; /* 調整底端位置以配合 padding，確保騎在雙底線上方 */
+        font-size: 1.4rem;
+        z-index: 999999; /* 極高層級確保點擊不受其他元素遮擋 */
+        cursor: pointer;
+        user-select: none;
+        padding: 10px 15px; /* 擴大點擊感應範圍 */
+        margin: -10px -15px; /* 使用負邊距抵消位移，不影響排版與底線位置 */
+        pointer-events: auto !important; /* 確保點擊事件正常觸發 */
+    }}
+    .title-container {{
+        position: relative;
+        display: inline-block;
+        border-bottom: 3px double var(--text-color);
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1372,7 +1393,10 @@ def fetch_bus_static_data():
         # Load stops
         r_stops = client.get(stops_url)
         if r_stops.status_code == 200:
-            stops_json = json.loads(gzip.decompress(r_stops.content).decode('utf-8'))
+            decompressed = gzip.decompress(r_stops.content).decode('utf-8')
+            if decompressed.strip().startswith("<!") or decompressed.strip().startswith("<html"):
+                raise RuntimeError("台北市公車 API (GetStop) 目前回傳伺服器錯誤 (HTML 格式)")
+            stops_json = json.loads(decompressed)
             for s in stops_json["BusInfo"]:
                 stops_dict[int(s["Id"])] = {
                     "nameZh": s["nameZh"],
@@ -1385,7 +1409,10 @@ def fetch_bus_static_data():
         # Load routes
         r_routes = client.get(routes_url)
         if r_routes.status_code == 200:
-            routes_json = json.loads(gzip.decompress(r_routes.content).decode('utf-8'))
+            decompressed = gzip.decompress(r_routes.content).decode('utf-8')
+            if decompressed.strip().startswith("<!") or decompressed.strip().startswith("<html"):
+                raise RuntimeError("台北市公車 API (GetRoute) 目前回傳伺服器錯誤 (HTML 格式)")
+            routes_json = json.loads(decompressed)
             for rt in routes_json["BusInfo"]:
                 routes_dict[int(rt["Id"])] = rt["nameZh"]
                 
@@ -1404,7 +1431,10 @@ def fetch_bus_arrivals(target_stop_ids_tuple):
         if r.status_code != 200:
             raise RuntimeError(f"無法取得公車動態資料 ({r.status_code})")
             
-        estimates_json = json.loads(gzip.decompress(r.content).decode('utf-8'))
+        decompressed = gzip.decompress(r.content).decode('utf-8')
+        if decompressed.strip().startswith("<!") or decompressed.strip().startswith("<html"):
+            raise RuntimeError("台北市公車 API (GetEstimateTime) 目前回傳伺服器錯誤 (HTML 格式)")
+        estimates_json = json.loads(decompressed)
         
         arrivals = []
         for est in estimates_json["BusInfo"]:
@@ -1634,18 +1664,29 @@ def get_mock_bus_arrivals():
 # ----------------- UI Rendering Implementation -----------------
 
 # Predefined landmark coordinates for quick selection
-predefined_landmarks = {
-    "統一數位大樓 (內湖石潭路155號)": (25.063549, 121.589583),
-    "捷運南港展覽館站": (25.0558, 121.6173),
-    "南港新富公園": (25.052429, 121.617524),
-    "捷運昆陽站": (25.050227, 121.593327),
-    "捷運港墘站": (25.079800, 121.575100),
-    "內湖好市多": (25.061700, 121.579600),
-    "台北車站": (25.047800, 121.517000),
-    "南港車站": (25.052187, 121.606775),
-    "台北101 / 信義商圈": (25.033976, 121.564539),
-    "內科園區 (湖濱路)": (25.075000, 121.583000),
-}
+predefined_landmarks = {}
+db_temp = get_session()
+try:
+    db_landmarks = db_temp.query(Landmark).all()
+    if db_landmarks:
+        predefined_landmarks = {item.name: (item.latitude, item.longitude) for item in db_landmarks}
+    else:
+        predefined_landmarks = {}
+except Exception as e:
+    predefined_landmarks = {
+        "統一數位大樓 (內湖石潭路155號)": (25.063549, 121.589583),
+        "捷運南港展覽館站": (25.0558, 121.6173),
+        "南港新富公園": (25.052429, 121.617524),
+        "捷運昆陽站": (25.050227, 121.593327),
+        "捷運港墘站": (25.079800, 121.575100),
+        "內湖好市多": (25.061700, 121.579600),
+        "台北車站": (25.047800, 121.517000),
+        "南港車站": (25.052187, 121.606775),
+        "台北101 / 信義商圈": (25.033976, 121.564539),
+        "內科園區 (湖濱路)": (25.075000, 121.583000),
+    }
+finally:
+    db_temp.close()
 
 # Coordinate State Setup
 if "user_lat" not in st.session_state:
@@ -1787,7 +1828,80 @@ if has_urgent_announcement:
 # Header Section
 col_header_left, col_header_right = st.columns([3, 1])
 with col_header_left:
-    st.markdown("<h1 style='margin:0;'>Survival Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown(strip_html("""
+    <div class="title-container" id="survival-title-container">
+        <h1 style="margin: 0; position: relative; display: inline-block;">
+            Survival Dashboard
+        </h1>
+    </div>
+    """), unsafe_allow_html=True)
+    
+    st.components.v1.html("""
+    <script>
+        (function() {
+            const doc = window.parent.document;
+            let attempts = 0;
+            function init() {
+                const container = doc.getElementById('survival-title-container');
+                if (!container) {
+                    attempts++;
+                    if (attempts < 100) {
+                        setTimeout(init, 50);
+                    }
+                    return;
+                }
+                if (container.querySelector('.riding-bike-js')) return;
+                container.querySelectorAll('.riding-bike-js').forEach(el => el.remove());
+                
+                const el = doc.createElement('span');
+                el.className = 'riding-bike-js';
+                el.innerText = '🚲';
+                
+                let left = -20;
+                let dir = 1;
+                const speed = 1.6;
+                const leftLimit = -20;
+                
+                el.style.left = left + 'px';
+                el.style.transform = 'scaleX(-1)';
+                container.appendChild(el);
+                
+                el.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    dir = -dir;
+                });
+                
+                function update() {
+                    if (!doc.body.contains(container) || !container.contains(el)) {
+                        return;
+                    }
+                    const rightLimit = container.offsetWidth;
+                    if (rightLimit < 50) {
+                        requestAnimationFrame(update);
+                        return;
+                    }
+                    
+                    left += dir * speed;
+                    el.style.left = left + 'px';
+                    el.style.transform = dir === 1 ? 'scaleX(-1)' : 'scaleX(1)';
+                    
+                    if (dir === 1 && left >= rightLimit) {
+                        dir = -1;
+                        left = rightLimit;
+                    } else if (dir === -1 && left <= leftLimit) {
+                        dir = 1;
+                        left = leftLimit;
+                    }
+                    
+                    requestAnimationFrame(update);
+                }
+                
+                requestAnimationFrame(update);
+            }
+            init();
+        })();
+    </script>
+    """, height=0, width=0)
 with col_header_right:
     tz_utc8 = datetime.timezone(datetime.timedelta(hours=8))
     now_dt = datetime.datetime.now(tz_utc8)
@@ -1937,14 +2051,17 @@ with col_pos1:
 
     if pos_mode == "常用地標":
         landmark_list = list(predefined_landmarks.keys())
-        default_idx = 0
-        if st.session_state["loc_name"] in landmark_list:
-            default_idx = landmark_list.index(st.session_state["loc_name"])
-        selected_landmark = st.selectbox("請選擇地標作為定位點", landmark_list, index=default_idx)
-        if selected_landmark and selected_landmark != st.session_state["loc_name"]:
-            st.session_state["user_lat"], st.session_state["user_lng"] = predefined_landmarks[selected_landmark]
-            st.session_state["loc_name"] = selected_landmark
-            st.rerun()
+        if not landmark_list:
+            st.info("目前尚無常用地標，可至後台維護新增。")
+        else:
+            default_idx = 0
+            if st.session_state["loc_name"] in landmark_list:
+                default_idx = landmark_list.index(st.session_state["loc_name"])
+            selected_landmark = st.selectbox("請選擇地標作為定位點", landmark_list, index=default_idx)
+            if selected_landmark and selected_landmark != st.session_state["loc_name"]:
+                st.session_state["user_lat"], st.session_state["user_lng"] = predefined_landmarks[selected_landmark]
+                st.session_state["loc_name"] = selected_landmark
+                st.rerun()
             
     elif pos_mode == "地址搜尋":
         with st.form("search_form", clear_on_submit=False):
@@ -1982,7 +2099,7 @@ with col_pos1:
         else:
             st.info("請在瀏覽器彈出視窗中允許位置存取權限。")
 
-st.markdown(f"**目前中心定位點**：{st.session_state['loc_name']} `({st.session_state['user_lat']:.6f}, {st.session_state['user_lng']:.6f})`")
+st.markdown(f"**目前中心定位點**：{html.escape(st.session_state['loc_name'])} `({st.session_state['user_lat']:.6f}, {st.session_state['user_lng']:.6f})`")
 st.markdown("---")
 
 # Parse temperature and precipitation values for visual threshold highlighting
@@ -2150,7 +2267,7 @@ st.subheader("＃ 即時天氣監控")
 st.markdown(strip_html(f"""
 <div class="weather-card" style="padding: 18px 24px !important;">
     <div class="weather-title" style="margin-bottom: 16px !important; display: flex; justify-content: space-between; align-items: center;">
-        <span>定位點：{st.session_state['loc_name']} ({display_district})</span>
+        <span>定位點：{html.escape(st.session_state['loc_name'])} ({html.escape(display_district)})</span>
         <small style="opacity: 0.7; font-size: 0.8rem;">更新時間：{weather['time']}</small>
     </div>
     <div style="display: flex; align-items: center; justify-content: space-between; gap: 30px; flex-wrap: wrap;">
@@ -2305,7 +2422,7 @@ if traffic_data:
         # Show update time and data limitation (every 5 minutes update)
         tz_utc8 = datetime.timezone(datetime.timedelta(hours=8))
         up_time = traffic_data.get("update_time", datetime.datetime.now(tz_utc8).strftime("%Y-%m-%d %H:%M:%S"))
-        st.markdown(f"<div style='font-size: 0.82rem; color: var(--text-color); opacity: 0.7; margin-top: -10px; margin-bottom: 12px;'>定位點：{st.session_state['loc_name']} ({display_district}) | 資料來源：台北市交通 VD 與國道即時資訊 (資料限制：每 5 分鐘更新一次) | <b>更新時間：{up_time}</b></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size: 0.82rem; color: var(--text-color); opacity: 0.7; margin-top: -10px; margin-bottom: 12px;'>定位點：{html.escape(st.session_state['loc_name'])} ({html.escape(display_district)}) | 資料來源：台北市交通 VD 與國道即時資訊 (資料限制：每 5 分鐘更新一次) | <b>更新時間：{html.escape(up_time)}</b></div>", unsafe_allow_html=True)
 
         roads = traffic_data.get("roads", [])
         events = traffic_data.get("events", [])
@@ -2553,15 +2670,74 @@ with st.sidebar:
     enable_admin = st.checkbox("切換至後台管理", value=False)
     
     if enable_admin:
-        st.subheader("＃ 管理員安全登入")
-        admin_user = st.text_input("帳號", key="admin_username")
-        admin_pass = st.text_input("密碼", type="password", key="admin_password")
-        
-        # Admin Validation
-        admin_db = db.query(AdminUser).filter(AdminUser.username == admin_user).first()
-        if admin_db and admin_db.password_hash == hash_password(admin_pass):
-            st.success("登入成功！")
+        if "admin_logged_in" not in st.session_state:
+            st.session_state["admin_logged_in"] = False
+
+        if not st.session_state["admin_logged_in"]:
+            st.subheader("＃ 管理員安全登入")
             
+            # Fetch admin999 user from DB
+            admin_db = db.query(AdminUser).filter(AdminUser.username == 'admin999').first()
+            if not admin_db:
+                # If not found, create one
+                admin_db = AdminUser(username='admin999', totp_secret=None, totp_bound=False)
+                db.add(admin_db)
+                db.commit()
+            
+            if not admin_db.totp_bound:
+                st.warning("⚠️ 首次登入請先綁定 Google 驗證碼 (TOTP)")
+                st.write("1. 手機下載並打開 **Google Authenticator** App")
+                st.write("2. 掃描下方 QR Code 或手動輸入金鑰：")
+                
+                # Check or generate pending secret
+                if "pending_totp_secret" not in st.session_state:
+                    st.session_state["pending_totp_secret"] = pyotp.random_base32()
+                
+                secret = st.session_state["pending_totp_secret"]
+                st.code(secret, language="")
+                
+                # Render QR Code
+                import urllib.parse
+                uri = f"otpauth://totp/SurvivalDashboard:admin999?secret={secret}&issuer=SurvivalDashboard"
+                encoded_uri = urllib.parse.quote(uri)
+                qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={encoded_uri}"
+                st.image(qr_url, caption="請掃描此 QR Code 綁定")
+                
+                bind_code = st.text_input("請輸入 Google 驗證 App 產生的 6 位數驗證碼", max_chars=6, key="totp_bind_code")
+                if st.button("確認並綁定"):
+                    totp = pyotp.TOTP(secret)
+                    if totp.verify(bind_code):
+                        admin_db.totp_secret = secret
+                        admin_db.totp_bound = True
+                        db.commit()
+                        st.session_state["admin_logged_in"] = True
+                        if "pending_totp_secret" in st.session_state:
+                            del st.session_state["pending_totp_secret"]
+                        st.success("綁定成功並登入！")
+                        st.rerun()
+                    else:
+                        st.error("驗證碼不正確，請重新輸入！")
+            else:
+                st.write("請輸入 Google Authenticator 上的 6 位數驗證碼登入。")
+                login_code = st.text_input("請輸入 6 位數驗證碼", max_chars=6, type="password", key="totp_login_code")
+                if st.button("安全登入"):
+                    totp = pyotp.TOTP(admin_db.totp_secret)
+                    if totp.verify(login_code):
+                        st.session_state["admin_logged_in"] = True
+                        st.success("登入成功！")
+                        st.rerun()
+                    else:
+                        st.error("驗證碼錯誤，請重新輸入！")
+                        
+                st.info("💡 提示：若您的驗證裝置遺失，請聯絡系統管理員於伺服器端重設金鑰（將資料庫 admin_users 中的 totp_bound 設為 False 即可重新綁定）。")
+        
+        else:
+            # st.session_state["admin_logged_in"] is True
+            st.subheader("＃ 後台管理面板 (已登入)")
+            if st.button("安全登出"):
+                st.session_state["admin_logged_in"] = False
+                st.rerun()
+                
             st.markdown("---")
             st.subheader("＃ 公告資料管理 (CRUD)")
             
@@ -2585,7 +2761,8 @@ with st.sidebar:
                 df_an,
                 key="announcement_editor",
                 num_rows="dynamic",
-                disabled=["id", "建立時間"],
+                disabled=["建立時間"],
+                column_config={"id": None},
                 use_container_width=True,
                 hide_index=True
             )
@@ -2653,7 +2830,7 @@ with st.sidebar:
                 df_res_crud,
                 key="restaurant_editor",
                 num_rows="dynamic",
-                disabled=["id"],
+                column_config={"id": None},
                 use_container_width=True,
                 hide_index=True
             )
@@ -2701,10 +2878,103 @@ with st.sidebar:
                 st.success("餐廳資訊已更新並同步至資料庫！")
                 db.close()
                 st.rerun()
+
+            st.markdown("---")
+            st.subheader("＃ 常用地標管理 (CRUD)")
+            
+            # Simple form for inserting a new landmark
+            with st.form("add_landmark_form", clear_on_submit=True):
+                st.write("**新增常用地標**")
+                new_name = st.text_input("地標名稱 (例如: 台北大安森林公園)", placeholder="請輸入地標名稱...")
+                col_new_lat, col_new_lng = st.columns(2)
+                with col_new_lat:
+                    new_lat = st.number_input("緯度", value=25.063549, format="%.6f", step=0.000001)
+                with col_new_lng:
+                    new_lng = st.number_input("經度", value=121.589583, format="%.6f", step=0.000001)
                 
-        else:
-            if admin_user or admin_pass:
-                st.error("帳號或密碼錯誤，請重新輸入！")
+                submit_new_landmark = st.form_submit_button("新增地標")
+                if submit_new_landmark:
+                    if not new_name.strip():
+                        st.error("地標名稱不能為空！")
+                    else:
+                        exists = db.query(Landmark).filter(Landmark.name == new_name.strip()).first()
+                        if exists:
+                            st.error("該地標名稱已存在！")
+                        else:
+                            try:
+                                new_landmark = Landmark(
+                                    name=new_name.strip(),
+                                    latitude=float(new_lat),
+                                    longitude=float(new_lng)
+                                )
+                                db.add(new_landmark)
+                                db.commit()
+                                st.success(f"已成功新增地標：{new_name.strip()}")
+                                db.close()
+                                st.rerun()
+                            except Exception as e:
+                                db.rollback()
+                                st.error(f"新增失敗: {e}")
+            
+            st.markdown("---")
+            st.write("**現有地標清單與編輯** (可在表格內直接修改或點選列刪除，修改完畢請點儲存地標變更)")
+            
+            # Fetch landmarks to pandas
+            lm_query = db.query(Landmark).all()
+            lm_data = []
+            for item in lm_query:
+                lm_data.append({
+                    "id": item.id,
+                    "地標名稱": item.name,
+                    "緯度": item.latitude,
+                    "經度": item.longitude
+                })
+                
+            df_lm_crud = pd.DataFrame(lm_data) if lm_data else pd.DataFrame(columns=["id", "地標名稱", "緯度", "經度"])
+            
+            # Data Editor for CRUD, hiding the ID column
+            edited_lm = st.data_editor(
+                df_lm_crud,
+                key="landmark_editor",
+                num_rows="dynamic",
+                column_config={"id": None},  # Hide the UUID column completely
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            # Save Changes button
+            if st.button("儲存地標變更"):
+                original_lm_ids = set(df_lm_crud["id"]) if not df_lm_crud.empty else set()
+                edited_lm_ids = set()
+                
+                # Update / Insert
+                for _, row in edited_lm.iterrows():
+                    l_id = row.get("id")
+                    if pd.notna(l_id) and l_id in original_lm_ids:
+                        edited_lm_ids.add(l_id)
+                        # Update
+                        db_item = db.query(Landmark).filter(Landmark.id == l_id).first()
+                        if db_item:
+                            db_item.name = row["地標名稱"]
+                            db_item.latitude = float(row["緯度"]) if pd.notna(row["緯度"]) else 0.0
+                            db_item.longitude = float(row["經度"]) if pd.notna(row["經度"]) else 0.0
+                    else:
+                        # Insert new
+                        new_item = Landmark(
+                            name=row["地標名稱"],
+                            latitude=float(row["緯度"]) if pd.notna(row["緯度"]) else 0.0,
+                            longitude=float(row["經度"]) if pd.notna(row["經度"]) else 0.0
+                        )
+                        db.add(new_item)
+                        
+                # Delete items that are missing
+                for old_id in original_lm_ids - edited_lm_ids:
+                    db.query(Landmark).filter(Landmark.id == old_id).delete()
+                    
+                db.commit()
+                st.success("常用地標資訊已更新並同步至資料庫！")
+                db.close()
+                st.rerun()
 
 # Close session
 db.close()

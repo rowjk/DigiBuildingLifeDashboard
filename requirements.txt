@@ -7,3 +7,5 @@ feedparser
 python-dotenv
 streamlit-antd-components
 streamlit-js-eval
+pyotp
+

@@ -43,12 +43,27 @@ class Restaurant(Base):
     latitude = Column(Float)
     longitude = Column(Float)
 
+class Landmark(Base):
+    __tablename__ = 'landmarks'
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(255), unique=True, nullable=False)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+
+class SystemConfig(Base):
+    __tablename__ = 'system_configs'
+    
+    key = Column(String(100), primary_key=True)
+    value = Column(String(255), nullable=False)
+
 class AdminUser(Base):
     __tablename__ = 'admin_users'
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     username = Column(String(100), unique=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
+    totp_secret = Column(String(255), nullable=True)
+    totp_bound = Column(Boolean, default=False)
 
 # --- DB Initialization and Seeding ---
 def get_session():
@@ -73,10 +88,35 @@ def init_db():
 
         admin_exists = db.query(AdminUser).filter(AdminUser.username == 'admin999').first()
         if not admin_exists:
-            hashed = hash_password('999admin')
-            admin = AdminUser(username='admin999', password_hash=hashed)
+            admin = AdminUser(username='admin999', totp_secret=None, totp_bound=False)
             db.add(admin)
-            print("Seeded secure admin user (admin999/999admin).")
+            print("Created admin999 user slot (Google Authenticator pending).")
+
+        # 2. Seed System Config & Landmarks (Option B)
+        seeded_config = db.query(SystemConfig).filter(SystemConfig.key == 'has_seeded_landmarks').first()
+        if not seeded_config or seeded_config.value != 'True':
+            landmark_count = db.query(Landmark).count()
+            if landmark_count == 0:
+                seed_landmarks = [
+                    Landmark(name="統一數位大樓 (內湖石潭路155號)", latitude=25.063549, longitude=121.589583),
+                    Landmark(name="捷運南港展覽館站", latitude=25.055800, longitude=121.617300),
+                    Landmark(name="南港新富公園", latitude=25.052429, longitude=121.617524),
+                    Landmark(name="捷運昆陽站", latitude=25.050227, longitude=121.593327),
+                    Landmark(name="捷運港墘站", latitude=25.079800, longitude=121.575100),
+                    Landmark(name="內湖好市多", latitude=25.061700, longitude=121.579600),
+                    Landmark(name="台北車站", latitude=25.047800, longitude=121.517000),
+                    Landmark(name="南港車站", latitude=25.052187, longitude=121.606775),
+                    Landmark(name="台北101 / 信義商圈", latitude=25.033976, longitude=121.564539),
+                    Landmark(name="內科園區 (湖濱路)", latitude=25.075000, longitude=121.583000)
+                ]
+                db.bulk_save_objects(seed_landmarks)
+                print("Seeded default landmarks.")
+            
+            if not seeded_config:
+                db.add(SystemConfig(key='has_seeded_landmarks', value='True'))
+            else:
+                seeded_config.value = 'True'
+            print("Initialized system config: has_seeded_landmarks.")
             
         # 2. Seed Announcements
         announcement_count = db.query(Announcement).count()
