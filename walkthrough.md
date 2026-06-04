@@ -171,8 +171,8 @@
 3. **新聞 RSS 發布時間與 Mock 公告日期時區修正**：
    * 修正了 Google News RSS 時間解析：將 `parsed_time.astimezone()` 改為明確傳入台北時區 `parsed_time.astimezone(tz_utc8)`，確保新聞更新時間精準無誤。
    * 修正了 Mock 公告列表的建立日期與 Mock 路況的時間種子。
-4. **頁尾更新日期（Footer）時區對齊**：
-   * 將頁尾版本更新資訊中的 `datetime.date.today()` 改為 `datetime.datetime.now(tz_utc8).strftime("%Y-%m-%d")`，確保在午夜時分，台北的更新日期與系統的換日線完全一致，不因伺服器 UTC 時差而延遲 8 小時更新。
+4. **頁尾更新日期（Footer）改為靜態發布日期**：
+   * 原先使用動態計算今日日期會導致網頁每日重載時「更新日期」自動變更，造成使用者誤解程式每日皆有更新。已將其修改為靜態字串 `2026-06-03`，代表該版本（v1.2.0）的實際發布與程式更新時間。
 5. **摺疊面板 (Expander) 卡片間距再縮減 50%**：
    * 為了進一步提升緊湊感，我們將美食推薦等摺疊面板卡片的包裝容器 `.element-container` 的 `margin-bottom` 從 `-8px !important` 調整為 **`-12px !important`**，使外部卡片間距縮減至 **`4px`**。
    * **資料內距與文字間距縮減 50%**：

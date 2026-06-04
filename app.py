@@ -2527,12 +2527,10 @@ st.components.v1.html(
 )
 
 # Footer Section
-tz_utc8 = datetime.timezone(datetime.timedelta(hours=8))
-today_str = datetime.datetime.now(tz_utc8).strftime("%Y-%m-%d")
 st.markdown(strip_html(f"""
 <div style="border-top: 3px double #111111; padding-top: 20px; margin-top: 40px; padding-bottom: 20px; text-align: center; font-family: 'Inter', sans-serif; font-size: 0.85rem; color: #555555; line-height: 1.6;">
     <div>© 2026 統一數位大樓生活資訊平台 (Life Dashboard) 版權所有</div>
-    <div>版本資訊：v1.2.0 | 更新日期：{today_str}</div>
+    <div>版本資訊：v1.2.0 | 更新日期：2026-06-03</div>
     <div style="margin-top: 6px; font-family: 'Fraunces', Georgia, serif; font-weight: 900; color: #111111; font-size: 0.95rem;">Powered with Antigravity 2.0 By James Wu</div>
     <div style="margin-top: 10px;">
         <a href="https://www.linkedin.com/in/james-wenkaiwu/" target="_blank" style="color: #111111; text-decoration: underline; margin-right: 15px; font-weight: bold;">LinkedIn</a>
