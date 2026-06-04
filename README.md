@@ -32,17 +32,17 @@ graph TD
 
     %% 4. External APIs
     subgraph External ["【 外部 API / 地圖服務 】"]
-        APIs["外部 APIs (中央氣象署 / 公車與 YouBike Gzip 解析 / RSS 新聞 / Places)"]
+        ExtAPIs["外部 APIs (天氣 / 公車 / YouBike / 新聞 / 美食)"]
         GMap["Google Maps Iframe 嵌入"]
     end
 
     %% Flows
     Client -->|用戶請求與互動渲染| Core
     Core -->|安全過濾與 TOTP| Security
-    Core -->|讀取快取 / 降級 Mock| Cache
+    Core -->|讀取快取與降級 Mock| Cache
     Core -->|ORM 資料存取| ORM
     ORM --> DB
-    Cache -->|API 數據請求 (防鎖頻)| APIs
+    Cache -->|API 數據請求與防鎖頻| ExtAPIs
     Widgets -->|直接嵌入地圖| GMap
 ```
 
