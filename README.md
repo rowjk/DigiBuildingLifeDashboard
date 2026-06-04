@@ -37,13 +37,13 @@ graph TD
     end
 
     %% Flows
-    Client <-->|用戶請求與互動渲染| Core
+    Client -->|用戶請求與互動渲染| Core
     Core -->|安全過濾與 TOTP| Security
-    Core <-->|快取資料 / 降級 Mock| Cache
-    Core <-->|資料存取| ORM
-    ORM <--> DB
-    Cache <-->|API 請求 (防鎖頻)| APIs
-    Widgets <-->|直接嵌入| GMap
+    Core -->|讀取快取 / 降級 Mock| Cache
+    Core -->|ORM 資料存取| ORM
+    ORM --> DB
+    Cache -->|API 數據請求 (防鎖頻)| APIs
+    Widgets -->|直接嵌入地圖| GMap
 ```
 
 ---
