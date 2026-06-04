@@ -65,12 +65,18 @@ def init_db():
     
     try:
         # 1. Seed Admin User
-        admin_exists = db.query(AdminUser).filter(AdminUser.username == 'admin').first()
+        # Remove old default 'admin' user if exists for security
+        old_admin = db.query(AdminUser).filter(AdminUser.username == 'admin').first()
+        if old_admin:
+            db.delete(old_admin)
+            print("Removed old default admin user.")
+
+        admin_exists = db.query(AdminUser).filter(AdminUser.username == 'admin999').first()
         if not admin_exists:
-            hashed = hash_password('admin')
-            admin = AdminUser(username='admin', password_hash=hashed)
+            hashed = hash_password('999admin')
+            admin = AdminUser(username='admin999', password_hash=hashed)
             db.add(admin)
-            print("Seeded default admin user (admin/admin).")
+            print("Seeded secure admin user (admin999/999admin).")
             
         # 2. Seed Announcements
         announcement_count = db.query(Announcement).count()

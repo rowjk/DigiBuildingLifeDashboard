@@ -1,6 +1,6 @@
 # Survival Dashboard 實作成果與驗證說明
 
-本專案已完全依照 PRD、您的修正指示（管理員帳密為 `admin`/`admin`、天氣 API 金鑰、北市府 API 連線失敗之錯誤訊息顯示規格）以及**北市府 API 連線修正**、**版本控制 / GitHub 遠端倉庫上傳**、**套用 Newsprint 視覺設計系統**、**標題與間距優化**、**HTML 渲染異常修復與更名**與**標題簡化暨地圖定位連動優化**開發並完成交付。
+本專案已完全依照 PRD、您的修正指示（管理員帳密為 `admin999`/`999admin`、天氣 API 金鑰、北市府 API 連線失敗之錯誤訊息顯示規格）以及**北市府 API 連線修正**、**版本控制 / GitHub 遠端倉庫上傳**、**套用 Newsprint 視覺設計系統**、**標題與間距優化**、**HTML 渲染異常修復與更名**與**標題簡化暨地圖定位連動優化**開發並完成交付。
 
 此外，針對最新的 YouBike 2.0 及大台北公車即時到站動態的顏色樣式要求，亦已實作色彩閾值與方向視覺化。
 
@@ -14,7 +14,7 @@
    * 已於本地的 `.env` 檔案中配置 `CWA_API_KEY`，該檔案已被 `.gitignore` 排除，防止金鑰外洩。
 3. **資料庫宣告與種子資料**：[database.py](file:///c:/Users/james_wu/Documents/Antigravity_Project/統一數位大樓生活資訊平台 (Life Dashboard)/database.py)
    * 定義 `Announcement`、`Restaurant` 與 `AdminUser` 資料表。
-   * 自動建立 `dashboard.db`，並預建一筆管理員（`admin` / `admin`）、3 筆預設公告與 **20 筆周邊精選餐廳資料**。
+   * 自動建立 `dashboard.db`，並預建一筆管理員（`admin999` / `999admin`）、3 筆預設公告與 **20 筆周邊精選餐廳資料**。
 4. **主程式與介面**：[app.py](file:///c:/Users/james_wu/Documents/Antigravity_Project/統一數位大樓生活資訊平台 (Life Dashboard)/app.py)
    * 整合四大 API，導入防禦性快取與自動降級機制。
    * **全面導入 Newsprint 視覺風格**：引進 Google Fonts (`Fraunces` + `Inter`)，全直角設計，黑白高對比版型，客製化 Streamlit 按鈕、輸入框與警告元件。
@@ -191,6 +191,6 @@
 3. 啟動後，瀏覽器會自動開啟並導向本機網址 `http://localhost:8501`。
 4. **測試後台管理 (CRUD)**：
    * 展開左方側邊欄，點擊「切換至後台管理」。
-   * 輸入帳號 `admin`，密碼 `admin` 登入。
+   * 輸入帳號 `admin999`，密碼 `999admin` 登入。
    * 在「公告資料管理」或「推薦餐廳管理」中點選空白行即可新增，或是點選格線進行修改。
    * 修改完成後，點擊對應之「**儲存變更**」按鈕，主畫面將會立即同步更新。
