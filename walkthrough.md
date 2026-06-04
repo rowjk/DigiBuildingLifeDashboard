@@ -85,3 +85,10 @@
 3. 啟動後，瀏覽器會自動開啟並導向本機網址 `http://localhost:8501` Office 內部或本地網路。
 4. **測試 Google Authenticator 驗證綁定與登入**。
 5. **測試常用地標 CRUD 與簡易輸入表單**。
+
+---
+
+## 📄 文件與架構說明更新說明
+* **系統架構圖**：已於 `README.md` 新增以 Mermaid 繪製的系統元件架構圖，包含前端 UI/Iframe/Sidebar 與後端 Core/Security/Cache/Database 關係。
+* **功能文件同步**：補充了 2FA TOTP 驗證登入、地標 Option B 種子防重灌機制、表格隱藏 UUID、標題單車點擊轉向與 XSS 防禦機制的說明。
+* **部署歷史**：已依指令執行 `git push`，成功將最新文件提交發布至 GitHub 遠端倉庫。

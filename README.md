@@ -77,7 +77,6 @@ graph TD
 
 ### 📌 互動式標題腳踏車動畫
 * **無分隔線設計**：主標題下方的雙底線已移除，腳踏車 `🚲` 直接流暢地在標題正下方行進，版面更為乾淨。
-* **JS 注入防禦**：為繞過 Streamlit 1.55.0 最新 HTML 消毒器（強行抹除內聯 JS 的安全機制），專案採用 **同源 iframe 注入技術 (`st.components.v1.html`)**。
 * **動態點擊即時轉向**：
   * 透過同源屬性 `window.parent.document` 對父頁面的 DOM 進行操作，在標題載入後掛載腳踏車 `🚲`。
   * 擴充腳踏車點擊熱區（`padding: 10px 15px`），滑鼠點擊時立刻切換行進方向 (`dir = -dir`)，並透過 `scaleX` 鏡像翻轉，確保腳踏車車頭朝向始終與前進方向一致。
@@ -149,5 +148,7 @@ graph TD
 2. **遵守嚴格的部署權限規範**：除非使用者明確發出指令要求（如「上git」、「commit」、「push」），否則地端 Agent 絕對不會擅自對 GitHub 倉庫進行任何提交與推送操作。
 
 * **GitHub 遠端倉庫位址**：`https://github.com/rowjk/SurvivalDashboard`
+* **Demo**：`https://survivaldashboard.streamlit.app/`
+
 
 
