@@ -312,8 +312,8 @@ def fetch_dynamic_restaurants(lat, lng, category="全部"):
 load_dotenv()
 
 # ----------------- App Version and Release Metadata -----------------
-APP_VERSION = "v1.2.0"
-APP_UPDATE_DATE = "2026-06-03"
+APP_VERSION = "v1.3.0"
+APP_UPDATE_DATE = "2026-06-04"
 
 # Set page configuration
 st.set_page_config(
