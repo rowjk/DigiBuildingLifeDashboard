@@ -177,7 +177,7 @@ module.exports = {
 
 ---
 
-## ⚡ 四、專案實作：統一數位大樓 Life Dashboard 套用
+## ⚡ 四、專案實作：Survival Dashboard 套用
 
 若要將此風格完全注入您目前的 Python Streamlit 儀表板中，您只需將 `app.py` 中原本的 `st.markdown("<style>...</style>")` 區塊（[app.py:L26-70](file:///c:/Users/james_wu/Documents/Antigravity_Project/統一數位大樓生活資訊平台 (Life Dashboard)/app.py#L26-70)）替換為以下的新聞紙客製化 CSS 樣式。
 

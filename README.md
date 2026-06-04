@@ -1,4 +1,4 @@
-# 統一數位大樓生活資訊平台 (Life Dashboard)
+# Survival Dashboard
 
 本專案是一個為企業內部設計的即時生活資訊儀表板（Dashboard），整合了天氣預報、新聞頭條、YouBike 2.0 即時站點、公車到站資訊、即時路況監控、周邊地圖與美食推薦，並包含後台 CRUD 管理系統。
 
@@ -52,7 +52,7 @@ python database.py
 ```bash
 streamlit run app.py
 ```
-或直接雙擊雙擊 `啟動Life_Dashboard.bat` 啟動服務。啟動後，瀏覽器將自動開啟並導向本機網址（通常為 `http://localhost:8501`）。
+或直接雙擊 `啟動Survival_Dashboard.bat` 啟動服務。啟動後，瀏覽器將自動開啟並導向本機網址（通常為 `http://localhost:8501`）。
 
 ---
 

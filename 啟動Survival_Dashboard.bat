@@ -1,9 +1,9 @@
 @echo off
-title Life Dashboard Launcher
+title Survival Dashboard Launcher
 cd /d "%~dp0"
 
 echo ===================================================
-echo   Life Dashboard Launcher
+echo   Survival Dashboard Launcher
 echo ===================================================
 echo.
 

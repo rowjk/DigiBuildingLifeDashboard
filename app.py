@@ -101,7 +101,7 @@ def google_geocode_or_search(query):
     # Free Nominatim geocoding fallback
     try:
         url = f"https://nominatim.openstreetmap.org/search"
-        headers = {"User-Agent": "LifeDashboard/1.2"}
+        headers = {"User-Agent": "SurvivalDashboard/1.2"}
         params = {"q": query, "format": "json", "limit": 1}
         with httpx.Client(verify=False, timeout=3.0) as client:
             r = client.get(url, headers=headers, params=params)
@@ -317,7 +317,7 @@ APP_UPDATE_DATE = "2026-06-03"
 
 # Set page configuration
 st.set_page_config(
-    page_title=f"統一數位大樓生活資訊平台 (Life Dashboard) {APP_VERSION}",
+    page_title=f"Survival Dashboard {APP_VERSION}",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -1027,7 +1027,7 @@ def get_district_from_coords(lat, lng, loc_name=""):
             # Fallback to Nominatim reverse geocoding
             try:
                 url = "https://nominatim.openstreetmap.org/reverse"
-                headers = {"User-Agent": "LifeDashboard/1.2"}
+                headers = {"User-Agent": "SurvivalDashboard/1.2"}
                 params = {
                     "lat": lat,
                     "lon": lng,
@@ -1787,7 +1787,7 @@ if has_urgent_announcement:
 # Header Section
 col_header_left, col_header_right = st.columns([3, 1])
 with col_header_left:
-    st.markdown("<h1 style='margin:0;'>統一數位大樓生活資訊平台<span class='title-subtitle'>(LIFE DASHBOARD)</span></h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='margin:0;'>Survival Dashboard</h1>", unsafe_allow_html=True)
 with col_header_right:
     tz_utc8 = datetime.timezone(datetime.timedelta(hours=8))
     now_dt = datetime.datetime.now(tz_utc8)
@@ -2533,7 +2533,7 @@ st.components.v1.html(
 # Footer Section
 st.markdown(strip_html(f"""
 <div style="border-top: 3px double #111111; padding-top: 20px; margin-top: 40px; padding-bottom: 20px; text-align: center; font-family: 'Inter', sans-serif; font-size: 0.85rem; color: #555555; line-height: 1.6;">
-    <div>© 2026 統一數位大樓生活資訊平台 (Life Dashboard) 版權所有</div>
+    <div>© 2026 Survival Dashboard 版權所有</div>
     <div>版本資訊：{APP_VERSION} | 更新日期：{APP_UPDATE_DATE}</div>
     <div style="margin-top: 6px; font-family: 'Fraunces', Georgia, serif; font-weight: 900; color: #111111; font-size: 0.95rem;">Powered with Antigravity 2.0 By James Wu</div>
     <div style="margin-top: 10px;">
