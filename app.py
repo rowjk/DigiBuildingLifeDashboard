@@ -2205,7 +2205,9 @@ else:
 
 # YouBike Section
 st.subheader("＃ YouBike站點")
-if youbike_list:
+if city_name != "台北市":
+    st.warning(f"⚠️ 本 YouBike 站點查詢功能目前僅支援台北市區。當前定位點（{city_name}）暫不支援。")
+elif youbike_list:
     cols_yb = st.columns(min(len(youbike_list), 3))
     for idx, yb in enumerate(youbike_list[:3]):
         with cols_yb[idx]:
@@ -2236,8 +2238,10 @@ else:
     st.write("目前無鄰近 YouBike 2.0 站點資料")
 
 # Bus Arrivals Section (with Scrollbar)
-st.subheader("＃ 公車即時到站動態(台北市)")
-if bus_list:
+st.subheader("＃ 公車即時到站動態")
+if city_name != "台北市":
+    st.warning(f"⚠️ 本公車到站動態查詢功能目前僅支援台北市區。當前定位點（{city_name}）暫不支援。")
+elif bus_list:
     # 排序：先依預估到站時間（raw_time）最小排序，負值（末班車/尚未發車等）排最後，再依路線編號排序
     def bus_sort_key(b):
         rt = b.get('raw_time', 99999)
