@@ -116,7 +116,7 @@ streamlit run app.py
 ## 📌 版本控制與 GitHub 託管
 本專案已初始化 Git 版本控制，並排除敏感環境設定（`.env`）與本地資料庫檔案（`dashboard.db`），確保代碼庫的乾淨與安全。
 
-* **GitHub 遠端倉庫位址**：`https://github.com/rowjk/DigiBuildingLifeDashboard`
+* **GitHub 遠端倉庫位址**：`https://github.com/rowjk/SurvivalDashboard`
 
 ---
 
