@@ -10,47 +10,40 @@
 
 ```mermaid
 graph TD
-    subgraph "用戶端瀏覽器 (Client Browser)"
-        UI["Streamlit 網頁介面"]
-        TitleContainer["主標題區塊<br>(Survival Dashboard)"]
-        BikeJS["同源 Iframe JS 注入器<br>(監聽點擊、控制 🚲 轉向及動畫)"]
-        Sidebar["側邊欄<br>(Google TOTP 二維條碼/密碼驗證)"]
-        AdminDashboard["後台管理面板<br>(隱藏 ID 欄位之資料編輯器)"]
+    %% 1. User Interaction Layer
+    subgraph Client ["【 用戶瀏覽器端 (Browser UI) 】"]
+        Title["主標題 🚲 單車動畫 (同源 iframe JS & 點擊轉向)"]
+        Widgets["即時資訊面板 (天氣/新聞/YouBike/公車/路況/地圖)"]
+        AdminUI["後台管理 (OTP 登入 / 隱藏 ID CRUD / 地標快捷表單)"]
     end
 
-    subgraph "Streamlit 伺服器 (app.py)"
-        Core["核心應用程式邏輯"]
-        Security["安全防護模組<br>(html.escape XSS 防禦 & pyotp 驗證)"]
-        Cache["快取機制 (@st.cache_resource / @st.cache_data)<br>(防禦外部 API 頻率限制)"]
-        DB["SQLite 本機資料庫 (dashboard.db)<br>(儲存公告、餐廳、常用地標、系統設定)"]
+    %% 2. Application Logic Layer
+    subgraph Server ["【 Streamlit 應用伺服器 (app.py) 】"]
+        Core["核心控制器 (頁面渲染與狀態分流)"]
+        Security["安全防護 (pyotp 2FA / html.escape XSS 防禦)"]
+        Cache["防禦快取 (@st.cache_resource / @st.cache_data)"]
+    end
+
+    %% 3. Data Storage Layer
+    subgraph Storage ["【 資料庫與 ORM 層 】"]
         ORM["SQLAlchemy ORM (database.py)"]
+        DB["SQLite 本機資料庫 (dashboard.db)<br>(公告 / 美食 / 地標 / 種子防灌保護)"]
     end
 
-    subgraph "外部 API / 資料源"
-        CWA["中央氣象署 API<br>(天氣預報、體感)"]
-        BusAPI["台北市公車 & YouBike API<br>(Gzip 錯誤防禦解析)"]
-        GoogleMap["Google Map Iframe<br>(無金鑰簡化版地圖)"]
-        GooglePlaces["Google Places API<br>(周邊美食搜尋)"]
-        RSS["新聞 RSS 串接<br>(Google 新聞頭條)"]
+    %% 4. External APIs
+    subgraph External ["【 外部 API / 地圖服務 】"]
+        APIs["外部 APIs (中央氣象署 / 公車與 YouBike Gzip 解析 / RSS 新聞 / Places)"]
+        GMap["Google Maps Iframe 嵌入"]
     end
 
-    %% 關係流向
-    UI --> TitleContainer
-    BikeJS -->|同源 DOM 操作| TitleContainer
-    UI --> Sidebar
-    Sidebar -->|TOTP 驗證成功| AdminDashboard
-    
-    UI <--> Core
-    Core --> Security
-    Core --> Cache
-    Core --> ORM
+    %% Flows
+    Client <-->|用戶請求與互動渲染| Core
+    Core -->|安全過濾與 TOTP| Security
+    Core <-->|快取資料 / 降級 Mock| Cache
+    Core <-->|資料存取| ORM
     ORM <--> DB
-
-    Cache <--> CWA
-    Cache <--> BusAPI
-    UI <--> GoogleMap
-    Cache <--> GooglePlaces
-    Cache <--> RSS
+    Cache <-->|API 請求 (防鎖頻)| APIs
+    Widgets <-->|直接嵌入| GMap
 ```
 
 ---
