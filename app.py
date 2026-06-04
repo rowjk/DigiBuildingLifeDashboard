@@ -928,7 +928,6 @@ st.markdown(f"""
     .title-container {{
         position: relative;
         display: inline-block;
-        border-bottom: 3px double var(--text-color);
         padding-bottom: 8px;
         margin-bottom: 12px;
     }}
