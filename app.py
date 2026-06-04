@@ -311,9 +311,13 @@ def fetch_dynamic_restaurants(lat, lng, category="全部"):
 # Load environment variables
 load_dotenv()
 
+# ----------------- App Version and Release Metadata -----------------
+APP_VERSION = "v1.2.0"
+APP_UPDATE_DATE = "2026-06-03"
+
 # Set page configuration
 st.set_page_config(
-    page_title="統一數位大樓生活資訊平台 (Life Dashboard)",
+    page_title=f"統一數位大樓生活資訊平台 (Life Dashboard) {APP_VERSION}",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -2530,7 +2534,7 @@ st.components.v1.html(
 st.markdown(strip_html(f"""
 <div style="border-top: 3px double #111111; padding-top: 20px; margin-top: 40px; padding-bottom: 20px; text-align: center; font-family: 'Inter', sans-serif; font-size: 0.85rem; color: #555555; line-height: 1.6;">
     <div>© 2026 統一數位大樓生活資訊平台 (Life Dashboard) 版權所有</div>
-    <div>版本資訊：v1.2.0 | 更新日期：2026-06-03</div>
+    <div>版本資訊：{APP_VERSION} | 更新日期：{APP_UPDATE_DATE}</div>
     <div style="margin-top: 6px; font-family: 'Fraunces', Georgia, serif; font-weight: 900; color: #111111; font-size: 0.95rem;">Powered with Antigravity 2.0 By James Wu</div>
     <div style="margin-top: 10px;">
         <a href="https://www.linkedin.com/in/james-wenkaiwu/" target="_blank" style="color: #111111; text-decoration: underline; margin-right: 15px; font-weight: bold;">LinkedIn</a>
